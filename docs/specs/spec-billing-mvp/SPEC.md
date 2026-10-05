@@ -17,12 +17,21 @@ Spring Boot 3.5 + Spring Modulith 1.4, Java 21, Maven; `billing` + `shared` pack
 - **AC (fail)** ✗ a deliberately-planted cross-module internal reference makes `verify()` FAIL (prove the guard bites).
 - **DoD** L0+L1 green incl. the modularity test; Dockerfile (temurin build → jre runtime, non-root).
 
-### BILL-011 — Ingest bound policy from the PAS (PolicyClient) · integration · P1 · 8
-- **AC** ✓ `PolicyClient` fetches a bound policy by ref → {premium minor-units, currency, holder, inception, LOB};
-  ✓ poll-reconcile sweep of recently-bound policies (D-INT rec: start here); ✓ idempotent (seen policy → skip); ✓ audited.
-- **AC (fail)** ✗ unknown/!bound policy → handled (no invoice, logged), not a 5xx; ✗ PAS down → retried, nothing lost/duplicated.
-- **L3 contract test** against the policy-service OpenAPI (wire-format/field pins — the RFC3339 trap).
-- **DoD** a bound test policy produces an ingest record; contract test green.
+### BILL-011 — Ingest the bound premium from the UW bound-risk event (ADR-003) · integration · P1 · 8
+Grounding (2026-10-05) corrected the source: the PAS has **no premium** ("bound" = status `active`); the
+premium lives in Underwriting, which already emits an `insurance.underwriting.bound-risk` event. Billing
+ingests that via a **durable JetStream consumer** (new `UNDERWRITING_EVENTS` stream captures the existing
+core publish — zero UW change). PAS is dropped from the MVP.
+- **AC** ✓ a durable JS consumer on `insurance.underwriting.bound-risk` deserializes `{policy_number,
+  premium_minor (eurocents int), currency, product_code, effective_date, expiry_date}`; ✓ idempotent-upsert
+  an `ingested_policy` row keyed by `policy_number` (replay → skip); ✓ audited; ✓ prod = authoritative
+  consumer (env-scoped durable name; dev's blank / separate so they don't compete).
+- **AC (fail)** ✗ a malformed event → logged + term/nak, not a crash; ✗ NATS down → durable redelivery on
+  reconnect (no ack), nothing lost; ✗ a duplicate `policy_number` → no second row.
+- **L3 contract test** against the **exact UW bound-risk payload** (field names, `YYYY-MM-DD` date strings,
+  `premium_minor` as int) — the mock-discipline pin.
+- **DoD** a published bound-risk event produces an `ingested_policy` row; L1 + L3 green; `UNDERWRITING_EVENTS`
+  stream manifest in gitops.
 
 ### BILL-012 — Raise premium invoice + installment schedule · domain · P1 · 8
 - **AC** ✓ on an ingested bound policy → **one** invoice (`issued`) with installments (MVP: single or N-equal);
