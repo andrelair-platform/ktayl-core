@@ -1,0 +1,34 @@
+# Java / Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.log
+hs_err_pid*
+
+# Spring Boot
+.spring-boot-devtools.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+
+# BMAD (planning working area — not committed per the New-Repo checklist)
+_bmad/
+_bmad-output/
+.claude/
+
+# Docusaurus (per-repo docs site, added later)
+website/.docusaurus/
+website/build/
+website/node_modules/
+
+# Env
+*.env
+.env.local
