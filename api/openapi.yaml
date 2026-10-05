@@ -1,0 +1,137 @@
+openapi: 3.0.3
+info:
+  title: ktayl-core — Billing API
+  version: 0.1.0
+  description: >
+    The Billing module of the ktayl-core insurance-LOB modular monolith (premium → cash → GL).
+    LIVE endpoints are implemented today (BILL-010); endpoints marked `x-status: planned` are the
+    contract-first surface for BILL-012–013 (contract tests implement against this). The bound-premium
+    INGEST is an event (NATS JetStream `insurance.underwriting.bound-risk`), not an endpoint — see
+    docs/architecture/adr/ADR-003.
+servers:
+  - url: https://iam-placeholder.invalid
+    description: internal only (Tailscale + minicloud CA); host set per env at BILL-016
+
+components:
+  securitySchemes:
+    authentikOidc:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Authentik OIDC access token; Finance group required on /api/billing/**.
+  schemas:
+    Problem:
+      type: object
+      properties:
+        status: { type: integer, example: 400 }
+        detail: { type: string }
+    WhoOwesWhat:
+      type: object
+      properties:
+        policy_number: { type: string }
+        currency: { type: string, example: EUR }
+        total_minor: { type: integer, format: int64, description: eurocents }
+        outstanding_minor: { type: integer, format: int64 }
+        installments:
+          type: array
+          items:
+            type: object
+            properties:
+              seq: { type: integer }
+              due_date: { type: string, format: date }
+              amount_minor: { type: integer, format: int64 }
+              status: { type: string, enum: [open, paid] }
+
+paths:
+  /actuator/health:
+    get:
+      summary: Liveness/readiness probe
+      security: []
+      responses:
+        '200': { description: UP }
+      x-status: live
+
+  /api/billing/ping:
+    get:
+      summary: Billing module smoke
+      security: [{ authentikOidc: [] }]
+      responses:
+        '200':
+          description: module reachable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  module: { type: string, example: billing }
+                  status: { type: string, example: ok }
+                  at: { type: string, format: date-time }
+        '401': { description: unauthenticated }
+      x-status: live
+
+  /api/billing/policies/{policyNumber}:
+    get:
+      summary: Who-owes-what for a policy (invoice + installments + outstanding)
+      security: [{ authentikOidc: [] }]
+      parameters:
+        - { name: policyNumber, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: outstanding state
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/WhoOwesWhat' } }
+        '401': { description: unauthenticated }
+        '403': { description: not in Finance group }
+        '404': { description: policy not ingested }
+      x-status: planned   # BILL-012/015
+
+  /api/billing/policies/{policyNumber}/invoice:
+    post:
+      summary: Raise the premium invoice + installment schedule (idempotent per policy)
+      description: Replaying a bind does not create a second invoice (AC1). Total reconciles to Σ installments.
+      security: [{ authentikOidc: [] }]
+      parameters:
+        - { name: policyNumber, in: path, required: true, schema: { type: string } }
+      responses:
+        '201': { description: invoice issued }
+        '200': { description: already invoiced (idempotent no-op) }
+        '404': { description: policy not ingested }
+        '409': { description: policy in a non-invoiceable state }
+      x-status: planned   # BILL-012
+
+  /api/billing/installments/{id}/pay:
+    post:
+      summary: Initiate a SEPA Direct Debit PaymentIntent (Stripe test) for an installment
+      description: Idempotent by client_key; over-payment / paid installment → 4xx (not 5xx). Async — returns pending; confirmation arrives on the webhook.
+      security: [{ authentikOidc: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_key]
+              properties:
+                client_key: { type: string, description: idempotency key }
+      responses:
+        '202': { description: payment intent created (pending) }
+        '400': { description: over-payment or bad request, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: installment already settled }
+      x-status: planned   # BILL-013a
+
+  /webhooks/stripe:
+    post:
+      summary: Stripe payment webhook (M2M — signature-verified, NOT SSO-gated)
+      description: >
+        Verifies the `Stripe-Signature` header against the webhook signing secret and dedupes by event
+        id (replay = no-op). On `payment_intent.succeeded` marks the payment captured → emits
+        PaymentCaptured → the GL outbox. A bad/forged signature → 400.
+      security: []
+      parameters:
+        - { name: Stripe-Signature, in: header, required: true, schema: { type: string } }
+      responses:
+        '200': { description: processed (or idempotent no-op) }
+        '400': { description: bad/forged signature }
+      x-status: planned   # BILL-013b
