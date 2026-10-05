@@ -10,19 +10,24 @@
                       │ SSO
  Finance user ──▶ Ingress (internal, Tailscale) ──▶ ktayl-core
                                                        │
+   Underwriting ──bound-risk event──▶ NATS JetStream (UNDERWRITING_EVENTS)
+                                                       │ consumes (durable)
          ┌─────────────────────────────────────────────┼───────────────────────────┐
-         ▼ consumes                     ▼ posts                 ▼ pays (ext)            ▼ owns
- ktayl-policy-service (PAS)     ERPNext GL (`erp` ns)     Stripe API (test)    PostgreSQL (CNPG/STS)
-   bound policy: premium,        Journal Entries           SEPA DD PaymentIntent  schema-per-module
-   holder, inception, LOB        (double-entry)            + signed webhook       (`billing` schema)
+         ▼ ingests (premium)            ▼ posts                 ▼ pays (ext)            ▼ owns
+ UW bound-risk event (NATS JS)  ERPNext GL (`erp` ns)     Stripe API (test)    PostgreSQL (CNPG/STS)
+   {policy_number, premium_minor, Journal Entries           SEPA DD PaymentIntent  schema-per-module
+    currency, product, dates}     (double-entry)            + signed webhook       (`billing` schema)
 ```
 
-The one **external** dependency is **Stripe (test mode)** — a third-party ICT provider (DORA register).
-It is reached by an outbound `PaymentGatewayClient` and replies asynchronously via a **signature-verified
-webhook** (the only non-SSO inbound surface).
+The premium source is the **Underwriting `bound-risk` event** (durable JetStream consumer, ADR-003) —
+the PAS is a thin registry with no premium, so it's not in the money MVP. The one **external** dependency
+is **Stripe (test mode)** — a third-party ICT provider (DORA register), reached by an outbound
+`PaymentGatewayClient` and replying asynchronously via a **signature-verified webhook** (the only non-SSO
+inbound surface).
 
-ktayl-core is **one deployable**. It does not own policy data (PAS does) and does not own the ledger
-(ERPNext does) — it owns the **billing** domain and integrates with the other two as external systems.
+ktayl-core is **one deployable**. It does not own policy data (the PAS does) and does not own the ledger
+(ERPNext does) — it owns the **billing** domain and integrates with Underwriting/ERPNext/Stripe as
+external systems.
 
 ## 2. Container / module view (C4 — Container)
 
@@ -38,7 +43,7 @@ ktayl-core  (Spring Boot 3.5, one pod set)
     │     ledger/      LedgerPostingListener (on PaymentCaptured/PremiumInvoiced) → LedgerClient (outbox-backed)
     ├── shared/                          ← cross-cutting, NOT a business module
     │     config/      datasource, Flyway-per-schema, security (OIDC resource server; webhook path permitAll + sig-verify filter)
-    │     integration/ PolicyClient (→ PAS), LedgerClient (→ ERPNext), PaymentGatewayClient (→ Stripe)  [boundary ports]
+    │     integration/ NatsConnection + UnderwritingEventConsumer (← JetStream), LedgerClient (→ ERPNext), PaymentGatewayClient (→ Stripe)  [boundary ports; PolicyClient→PAS deferred]
     └── KtaylCoreApplication
   test/ ModularityTests  → ApplicationModules.verify()   ← FAILS THE BUILD on a boundary violation
 ```
@@ -47,19 +52,21 @@ ktayl-core  (Spring Boot 3.5, one pod set)
 or an **application event**; never another module's internals or schema. `shared` holds only
 cross-cutting infra (no business logic). The verification test is the guardrail — do not weaken it.
 
-## 3. The two integration contracts (both L3 contract-tested — mock discipline)
+## 3. The integration contracts (L3 contract-tested — mock discipline)
 
 | Port | Direction | Contract | Failure behaviour |
 |---|---|---|---|
-| **PolicyClient** | ktayl-core → PAS | GET bound policy by ref → {premium (minor units), currency, holder, inception, LOB}. Pinned to the policy-service OpenAPI; a **contract test** validates the shape (the RFC3339/field-drift trap from underwriting). | PAS down → ingest retries; a missing/!bound policy → 4xx, no invoice. |
+| **UnderwritingEventConsumer** | Underwriting → ktayl-core (inbound) | durable **JetStream** consumer on `insurance.underwriting.bound-risk` (stream `UNDERWRITING_EVENTS`). Event = `{policy_number, premium_minor (eurocents int), currency, product_code, effective_date (YYYY-MM-DD), expiry_date, submission_id, quote_id}` — the real UW bind payload (ADR-003). **This is the premium source** (the PAS has no premium). L3-pinned to the exact payload. | NATS down → durable redelivery (no ack); malformed → logged + term/nak, no crash; duplicate `policy_number` → idempotent skip. |
 | **LedgerClient** | ktayl-core → ERPNext | POST a **Journal Entry** (accounts + debit/credit lines, must balance). Contract test vs the ERPNext API; a seeded chart-of-accounts mapping (Premium Receivable / Premium Income / Cash). | **Async + outbox + retry** — a GL blip never blocks invoicing/payment; the money move is never half-committed. |
 | **PaymentGatewayClient** | ktayl-core → Stripe (test) | create a **SEPA-DD PaymentIntent** (idempotency-key = payment `client_key`); Test Clocks for due-dates. Contract test vs the PaymentIntents API (fixtures). | Stripe down → intent-create retried; payment stays `pending` (eventually-consistent), nothing lost. |
 | **Stripe webhook** | Stripe → ktayl-core (inbound) | `POST /webhooks/stripe` — `payment_intent.succeeded` etc. **Signature-verified** (`Stripe-Signature` + signing secret), **idempotent** (event id dedupe). Dev = Stripe CLI `listen --forward-to`; prod = tunnel route, that path only bypasses SSO. | Bad/forged signature → 400, ignored. Replayed event → no-op. A webhook before the intent record → parked + reconciled. |
+| ~~PolicyClient → PAS~~ (deferred) | ktayl-core → PAS | holder_name enrichment only (display); the PAS is a thin registry with **no premium** → **not needed for the money MVP** (ADR-003). | n/a (deferred). |
 
-**Bind ingestion transport (decide at kickoff, D-INT):** either (a) **NATS** subscribe to a
-policy-bound event (consistent with claims CDC / HR lifecycle — preferred, replayable), or (b) a
-**poll-reconcile** PolicyClient sweep of recently-bound policies (self-healing, no producer change).
-MVP can start with (b) and add (a) — recommendation: start poll-reconcile, add the event when PAS emits one.
+**Ingest transport (decided, ADR-003):** a **durable JetStream consumer** of the existing Underwriting
+`bound-risk` event, made durable by a new `UNDERWRITING_EVENTS` stream (subjects
+`insurance.underwriting.>`) — zero Underwriting change (JetStream captures the core publish). This
+replaces the earlier "poll-reconcile from the PAS" idea, which is impossible (the PAS has no premium and
+UW has no policy_number→premium read).
 
 ## 4. Data model (billing schema)
 
@@ -92,10 +99,11 @@ Money is **minor units (integer)**, never float. All writes in a module transact
   dedicated Cloudflare-tunnel route (`billing.devandre.sbs/webhooks/stripe`) whose Authentik
   forward-auth is bypassed **for that path only**; the rest of the host stays SSO-gated. Dev needs no
   public exposure (Stripe CLI forwards).
-- Egress: DNS + PAS (`ktayl-policy-service` ns) + ERPNext (`erp` ns) + its own Postgres + **the Stripe
-  API (external `api.stripe.com:443`)** — the one governed-egress **exception to the all-internal
-  posture** (documented + SEC-approved; a CIDR/FQDN-scoped allow, not blanket internet). (+ NATS if the
-  bound-event transport (a) is added later.) Nothing else.
+- Egress: DNS + **NATS (`messaging` ns, JetStream consumer — the ingest source, ADR-003)** + ERPNext
+  (`erp` ns) + its own Postgres + **the Stripe API (external `api.stripe.com:443`)** — the one
+  governed-egress **exception to the all-internal posture** (documented + SEC-approved; a CIDR/FQDN-scoped
+  allow, not blanket internet). The PAS egress is **not** in the MVP (premium comes from the UW event;
+  holder enrichment deferred). Nothing else.
 
 ## 7. Deployment
 - **GAP wrapper chart** `minicloud-gitops/services/ktayl-core/helm/` (library `minicloud-app-deployment`),

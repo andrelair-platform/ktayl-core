@@ -37,3 +37,13 @@ management:
 
 server:
   port: 8080
+
+# Billing ingest (ADR-003): durable JetStream consumer of the UW bound-risk event.
+# PROD sets billing.nats.url (authoritative consumer); dev leaves it BLANK → consumer disabled
+# (exactly one env consumes the shared UNDERWRITING_EVENTS stream — the HR_LIFECYCLE discipline).
+billing:
+  nats:
+    url: ${BILLING_NATS_URL:}
+    stream: ${BILLING_NATS_STREAM:UNDERWRITING_EVENTS}
+    subject: ${BILLING_NATS_SUBJECT:insurance.underwriting.bound-risk}
+    durable: ${BILLING_NATS_DURABLE:billing-ingest}
