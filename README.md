@@ -30,7 +30,7 @@ Spring Modulith `ApplicationModules.verify()` test, not left to discipline.
 
 | Module | Status | Responsibility |
 |---|---|---|
-| **billing** | 🏗️ MVP in build | Premium invoicing + installments + payments; posts double-entry **Journal Entries to ERPNext GL** (adopts the ledger, does not rebuild it). Consumes bound policies from the live PAS. |
+| **billing** | 🏗️ MVP in build | Premium invoicing + installments + payments (**Stripe test, SEPA Direct Debit**, webhook-driven); posts double-entry **Journal Entries to ERPNext GL** (adopts the ledger, does not rebuild it). Consumes bound policies from the live PAS. |
 | distribution / crm | planned | Next module — broker/CRM intake front door |
 
 ## Architecture
@@ -41,8 +41,9 @@ Authentik SSO ─▶ Ingress ─▶ ktayl-core (Spring Boot, one pod set)
                                  │    billing/      (module: api → domain → persistence, schema `billing`)
                                  │    shared/       (cross-cutting: config, security, integration clients)
                                  ▼
-   PolicyClient ───▶ ktayl-policy-service (PAS, live)   [bound policy: premium, holder, inception, LOB]
-   LedgerClient ───▶ ERPNext API (GL, live)             [Journal Entry: receivable / premium income / cash]
+   PolicyClient ─────────▶ ktayl-policy-service (PAS, live)   [bound policy: premium, holder, inception, LOB]
+   LedgerClient ─────────▶ ERPNext API (GL, live)             [Journal Entry: receivable / premium income / cash]
+   PaymentGatewayClient ─▶ Stripe (TEST, SEPA DD)             [PaymentIntent] ──webhook──▶ /webhooks/stripe (signed)
                                  ▼
                          PostgreSQL (one DB, schema-per-module)
 ```
@@ -53,7 +54,7 @@ Authentik SSO ─▶ Ingress ─▶ ktayl-core (Spring Boot, one pod set)
 | Framework | Spring Boot 3.4 + **Spring Modulith 1.3** (module boundaries + application events + verification) |
 | Build | Maven |
 | Persistence | Spring Data JPA + **Flyway** (migrations per module), PostgreSQL schema-per-module |
-| Integration | `RestClient` → PAS + ERPNext (contract-tested) |
+| Integration | `RestClient` → PAS + ERPNext + Stripe (test, SEPA DD; contract-tested) + a signed inbound webhook |
 | AuthN | Authentik OIDC (resource-server; the console/portal is SSO-gated) |
 | Registry / GitOps | ghcr (prod) + Harbor (dev) · ArgoCD · **Kargo git-Warehouse** (JVM base-layer date breaks NewestBuild) |
 | Deploy | GAP wrapper chart `minicloud-gitops/services/ktayl-core/helm/`, ns `ktayl-core` / `ktayl-core-prod` |

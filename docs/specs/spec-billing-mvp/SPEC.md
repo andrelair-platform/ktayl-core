@@ -31,11 +31,21 @@ Spring Boot 3.4 + Spring Modulith 1.3, Java 21, Maven; `billing` + `shared` pack
 - **AC (fail)** ✗ bind replay does not duplicate the invoice; ✗ rounding reconciles (last installment absorbs the remainder).
 - **DoD** L1 money-math + reconciliation + idempotency tests; L2 (real Flyway/JPA) green.
 
-### BILL-013 — Capture payment against an installment · domain · P1 · 5
-- **AC** ✓ a payment reduces the installment/invoice outstanding by exactly its amount; ✓ **idempotent by `client_key`**;
-  ✓ installment → `paid`, invoice → `settled` when all paid; ✓ event `PaymentCaptured`; ✓ audited.
-- **AC (fail)** ✗ over-payment / payment on a settled installment → **4xx, not 5xx**; ✗ replay with the same client_key is a no-op.
-- **DoD** L1 + L2 (real DB transaction — payment+installment commit atomically or not at all).
+### BILL-013a — Initiate payment via Stripe (SEPA DD PaymentIntent) · integration · P1 · 5
+- **AC** ✓ `PaymentGatewayClient` creates a **SEPA-DD PaymentIntent** for an installment (idempotency-key
+  = payment `client_key`); ✓ persists `payment(status=pending, psp_intent_id)`; ✓ event `PaymentInitiated`; ✓ audited.
+- **AC (fail)** ✗ over-payment / payment on a settled installment → **4xx, not 5xx** (rejected before Stripe);
+  ✗ re-initiate with the same client_key → the same intent, no duplicate; ✗ Stripe down → retried, stays `pending`.
+- **L3 contract test** vs the Stripe PaymentIntents API (fixtures). **DoD** L1+L2; a test installment yields a pending intent.
+
+### BILL-013b — Capture on the signature-verified Stripe webhook · integration/security · P1 · 5
+- **AC** ✓ `POST /webhooks/stripe` verifies the `Stripe-Signature` (webhook signing secret) → on
+  `payment_intent.succeeded` marks `payment=succeeded`, installment→`paid`, invoice→`settled` when all paid;
+  ✓ **idempotent** by `webhook_event.psp_event_id` (replay = no-op); ✓ emits `PaymentCaptured`; ✓ audited;
+  ✓ payment+installment commit in one DB transaction, event marked processed only after commit.
+- **AC (fail)** ✗ bad/forged signature → 400, ignored; ✗ webhook before its intent record → parked + reconciled, not dropped;
+  ✗ the endpoint is reachable WITHOUT SSO (M2M) but ONLY accepts signature-valid payloads.
+- **Test Clocks** simulate due-dates advancing for the installment demo. **DoD** L1+L2; dev loop via `stripe listen`.
 
 ### BILL-014 — Post double-entry to ERPNext GL (LedgerClient + outbox) · integration · P1 · 8
 - **AC** ✓ on `PremiumInvoiced` → JE `DR Premium Receivable / CR Premium Income`; on `PaymentCaptured` →
@@ -49,14 +59,19 @@ Spring Boot 3.4 + Spring Modulith 1.3, Java 21, Maven; `billing` + `shared` pack
 - **AC** ✓ per-policy invoice + installments + outstanding; ✓ append-only audit list; ✓ Finance-group-gated; ✓ actor from identity.
 - **DoD** API returns correct outstanding reconciling to GL; authz test (401/403).
 
-### BILL-016 — Deploy: GAP wrapper chart + Kargo git-Warehouse + netpol + ESO · infra · P1 · 5
+### BILL-016 — Deploy: GAP wrapper chart + Kargo git-Warehouse + netpol + ESO + Stripe webhook route · infra · P1 · 8
 - **AC** ✓ `services/ktayl-core/helm/` wrapper chart (dev+prod), `releaseName: ktayl-core`; ✓ ns `ktayl-core`/`-prod`,
-  quota-fitted; ✓ **Kargo git-Warehouse** (commit-keyed, block-style YAML tag); ✓ default-deny netpol (DNS+PAS+ERPNext+PG only);
-  ✓ ESO→Vault secrets + the ExternalSecret `ignoreDifferences`.
-- **DoD** ArgoCD Synced/Healthy on dev; Kargo promotes dev→prod via the CODEOWNERS PR after the QA gate.
+  quota-fitted (JVM footprint per PRD cost); ✓ **Kargo git-Warehouse** (commit-keyed, block-style YAML tag);
+  ✓ default-deny netpol — egress **DNS + PAS + ERPNext + PG + `api.stripe.com:443`** (the governed external
+  exception); ✓ ESO→Vault secrets incl. **Stripe test key + webhook signing secret** + the ExternalSecret `ignoreDifferences`;
+  ✓ **prod Stripe webhook** = a Cloudflare-tunnel route `billing.devandre.sbs/webhooks/stripe` with forward-auth
+  bypassed for that path only (dev uses `stripe listen`).
+- **DoD** ArgoCD Synced/Healthy on dev; a live Stripe test webhook reaches the pod + verifies; Kargo promotes
+  dev→prod via the CODEOWNERS PR after the QA gate.
 
 ## Sequence
-BILL-010 → BILL-011 → BILL-012 → BILL-013 → BILL-014 → (BILL-015 ∥ BILL-016). ≈42 pts — one focused sprint for the MVP thread.
+BILL-010 → BILL-011 → BILL-012 → BILL-013a → BILL-013b → BILL-014 → (BILL-015 ∥ BILL-016). ≈50 pts —
+one focused sprint for the MVP money thread (the Stripe split + webhook route add ~8 pts over the mock-payment version).
 
 ## Readiness gate
 
@@ -66,10 +81,12 @@ BILL-010 → BILL-011 → BILL-012 → BILL-013 → BILL-014 → (BILL-015 ∥ B
 | Stack decided + justified | ✅ ADR-001 (Spring Boot + Spring Modulith) — owner decision 2026-10-05 |
 | Architecture + boundary | ✅ `docs/architecture.md`: modular-monolith, 2 contracts (PAS/ERPNext), outbox, netpol, deploy |
 | NFR/security/compliance/cost | ✅ PRD sections present (money=minor-units, async GL, PII/egress, IFRS17/DORA, JVM footprint vs quota) |
-| Mock discipline | ✅ both external boundaries (PAS, ERPNext) have an L3 contract test in the DoD |
-| Cross-service contracts pinned | ⚠️ confirm the PAS bound-policy endpoint + ERPNext JE account mapping at kickoff (BILL-011/014) |
+| Payment PSP decided | ✅ ADR-002: Stripe test mode + SEPA DD, webhook-driven async capture (owner, 2026-10-05) |
+| Mock discipline | ✅ all three external boundaries (PAS, ERPNext, **Stripe**) have an L3 contract test in the DoD |
+| Cross-service contracts pinned | ⚠️ confirm the PAS bound-policy endpoint + ERPNext JE account mapping + the Stripe **webhook signing secret / SEPA test setup** at kickoff (BILL-011/014/013b) |
 | Transport choice | ⚠️ D-INT open: start poll-reconcile, add a bound-event later (recommended, not a blocker) |
-| Governance gate | ⚠️ **PENDING** — boundary-crossing (money + PII + cross-service) → SA+SEC review must sign off before build |
+| Governance gate | ⚠️ **PENDING** — boundary-crossing (money + PII + cross-service + **external PSP: Stripe egress + non-SSO signature-verified webhook**) → SA+SEC review must sign off before build |
 
-**Verdict: PASS (CONCERNS)** — ready to build the MVP epic once the **governance gate** (SA+SEC) signs
-off and the two ⚠️ contract details are confirmed at BILL-011/014 kickoff. None are design blockers.
+**Verdict: PASS (CONCERNS)** — ready to build the MVP epic once the **governance gate** (SA+SEC, now
+including the external-PSP surface) signs off and the ⚠️ contract/secret details are confirmed at
+BILL-011/013b/014 kickoff. None are design blockers.
