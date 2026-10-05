@@ -20,7 +20,7 @@ Python/FastAPI.
 
 ## Decision
 
-**Java 21 + Spring Boot 3.4 + Spring Modulith 1.3**, Maven, Spring Data JPA + Flyway, PostgreSQL
+**Java 21 + Spring Boot 3.5 + Spring Modulith 1.4**, Maven, Spring Data JPA + Flyway, PostgreSQL
 **schema-per-module**. Cross-module communication via **public interfaces + Spring application events**;
 boundaries **enforced** by a `ModularityTests` (`ApplicationModules.verify()`) that fails the build on a
 violation. The **GL is adopted** (ERPNext) — ktayl-core posts Journal Entries, it does not implement a ledger.
@@ -58,6 +58,13 @@ violation. The **GL is adopted** (ERPNext) — ktayl-core posts Journal Entries,
   (the exact ktayl-claims/policy-service trap in `gitops.md`). Key Freight on the **commit**
   (`commitFrom(...).ID[0:7]` == the CI short-SHA tag). This is decided now so the Kargo dir is born right.
 - **New stack to operate** on the cluster (JVM build image, Maven CI) — one-time setup cost.
+
+## Supply chain (CI Trivy CRITICAL gate)
+- Keep the Spring Boot version **current** — an old patch pins old `tomcat-embed-core` + `spring-security`
+  that carry fixed-available CRITICALs. BILL-010 shipped on **3.5.16** (was drafted on 3.4.1, which the
+  Trivy gate correctly rejected for CVE-2025-24813 et al.).
+- Boot 3.5.16 pins tomcat **10.1.55**; three 2026 tomcat CVEs (CVE-2026-65182/65905/68525) need **10.1.58**,
+  so `tomcat.version` is overridden to **10.1.60** in the pom. Drop the override when a Boot patch pins ≥ 10.1.60.
 
 ## Follow-ups
 - Image = multi-stage (temurin build → distroless/temurin-**jre** runtime, runs non-root for Gatekeeper).

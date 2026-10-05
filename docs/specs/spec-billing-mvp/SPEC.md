@@ -10,7 +10,7 @@ Journal Entries to ERPNext GL — demonstrated end-to-end on dev, QA'd, promoted
 ## Stories
 
 ### BILL-010 — Project scaffold + modular-monolith skeleton · infra · P1 · 5
-Spring Boot 3.4 + Spring Modulith 1.3, Java 21, Maven; `billing` + `shared` packages; Postgres datasource
+Spring Boot 3.5 + Spring Modulith 1.4, Java 21, Maven; `billing` + `shared` packages; Postgres datasource
 + Flyway (schema `billing`); Authentik OIDC resource-server; `/actuator/health`.
 - **AC** ✓ app boots; ✓ **ModularityTests `ApplicationModules.verify()` passes** (the boundary guard exists
   from day one); ✓ Flyway creates the `billing` schema; ✓ `/actuator/health` = UP; ✓ `/api/**` is 401 unauthenticated.

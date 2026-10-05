@@ -2,8 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Java](https://img.shields.io/badge/Java-21-blue)](https://adoptium.net/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4-brightgreen)](https://spring.io/projects/spring-boot)
-[![Spring Modulith](https://img.shields.io/badge/Spring%20Modulith-1.3-green)](https://spring.io/projects/spring-modulith)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-brightgreen)](https://spring.io/projects/spring-boot)
+[![Spring Modulith](https://img.shields.io/badge/Spring%20Modulith-1.4-green)](https://spring.io/projects/spring-modulith)
 [![Supply chain: cosign](https://img.shields.io/badge/supply%20chain-cosign%20signed-green)](https://github.com/sigstore/cosign)
 
 > The ktayl-solution **insurance-LOB modular monolith** — a single Spring Boot application whose
@@ -51,7 +51,7 @@ Authentik SSO ─▶ Ingress ─▶ ktayl-core (Spring Boot, one pod set)
 | Component | Choice |
 |---|---|
 | Runtime | Java 21 (LTS) |
-| Framework | Spring Boot 3.4 + **Spring Modulith 1.3** (module boundaries + application events + verification) |
+| Framework | Spring Boot 3.5 + **Spring Modulith 1.4** (module boundaries + application events + verification) |
 | Build | Maven |
 | Persistence | Spring Data JPA + **Flyway** (migrations per module), PostgreSQL schema-per-module |
 | Integration | `RestClient` → PAS + ERPNext + Stripe (test, SEPA DD; contract-tested) + a signed inbound webhook |

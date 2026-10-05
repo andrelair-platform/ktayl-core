@@ -27,7 +27,7 @@ ktayl-core is **one deployable**. It does not own policy data (PAS does) and doe
 ## 2. Container / module view (C4 — Container)
 
 ```
-ktayl-core  (Spring Boot 3.4, one pod set)
+ktayl-core  (Spring Boot 3.5, one pod set)
   com.ktayl.core
     ├── billing/                         ← Spring Modulith @ApplicationModule
     │     api/         REST controllers (SSO-gated) + StripeWebhookController (/webhooks/stripe, NOT SSO), DTOs
