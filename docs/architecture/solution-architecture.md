@@ -8,11 +8,17 @@
 - **Status:** as-built for BILL-010/011; forward-looking for BILL-012–016 · **Date:** 2026-10-06
 - **Delivery path:** C · **Board:** #28
 
-## 1. Context & problem
-The insurance operating spine (Submission→Underwriting→Policy bind→**Billing**→Claims) could **bind** a
-policy but had **no way to turn it into cash**. ktayl-core's first module, **Billing**, is that link:
-premium → invoice → payment → GL. ktayl-core is the modular-monolith home for custom insurance domains as
-*modules* (not services). → [PRD](../prd.md), [architecture](../architecture.md).
+> Three audience-tagged views: **Conceptual** (§1 — PM/stakeholder) · **Component** (§3–§5 — engineers) ·
+> **Operational** (§6 — DevOps/SRE). Diagrams over prose; consistent names; the *why* in the ADR log (§8).
+
+## 1. Conceptual view — what it does & why it matters  *(for PM / stakeholder / new hire)*
+In plain terms: ktayl can **sell and bind** an insurance policy, but until now it had **no way to collect
+the premium** — a bound policy generated no invoice, no payment, no accounting entry. **Billing closes
+that loop**: it turns a bound policy into **an invoice the customer pays, and a booked entry in the
+general ledger**. It's the "money" link of the insurance value chain
+(Submission → Underwriting → Policy bind → **Billing** → Claims). ktayl-core is the modular-monolith that
+hosts Billing (and future insurance domains) as *modules*, not separate services.
+→ [PRD](../prd.md), [architecture](../architecture.md).
 
 ## 2. Requirements
 ### 2.1 Functional
@@ -24,8 +30,16 @@ GL post **async + retried** (an ERPNext blip never blocks invoicing) · transact
 (`@Transactional` + outbox) · structured logs + `/actuator` + Prometheus. JVM footprint ~512Mi–768Mi req /
 1Gi limit per replica (fits the insurance ns quota). SLO row → `slo-register.md` (ktayl-core: ingest lag
 < 60 s; 100% balanced JE; RTO 30m / RPO 24h).
+### 2.3 Technical → user-outcome translation
+| Requirement | Technical choice | Business outcome |
+|---|---|---|
+| Reliable ingest | durable JetStream consumer (ADR-003) | "a policy bound while Billing is down still gets invoiced" |
+| No lost/double money move | transactional outbox → ERPNext GL | "every payment posts to the ledger exactly once, balanced" |
+| Correct money | integer eurocents; total = Σ installments | "invoices always reconcile to the cent" |
+| Safe payments | Stripe test SEPA DD + signature-verified webhook | "payment confirmation can't be forged or double-counted" |
+| Fast UI | GL post off the request path (async) | "the invoice/payment action returns in < 300 ms" |
 
-## 3. System architecture (C4)
+## 3. System architecture (C4)  *(Component + Operational views — for engineers / DevOps)*
 **Context** — Underwriting (bound-risk event) → ktayl-core → ERPNext GL + Stripe(test) + Postgres; Finance
 user via Authentik SSO. **Container** — one Spring Boot deployable; modules `billing` (CLOSED) + `shared`
 (OPEN); boundary ports `UnderwritingEventConsumer` (NATS JetStream), `LedgerClient` (ERPNext),
