@@ -132,3 +132,13 @@ Money is **minor units (integer)**, never float. All writes in a module transact
   `api.stripe.com` egress exception, the non-SSO signature-verified webhook, idempotent replay handling,
   the no-PCI-scope confirmation, Stripe as a DORA third-party). Record the decision in ADR/RACI (the gate
   is `bmad-compliance.md`). Then: SPEC → stories → readiness gate PASS → build.
+
+### Sign-off — ✅ CLEARED 2026-10-05
+- **Architecture review (SA/TL):** approved — modular monolith (ADR-001), Billing module boundaries,
+  the three boundary ports (PAS/ERPNext/Stripe), transactional-outbox GL post.
+- **Security review (SEC):** approved with the external-PSP surface understood + accepted — (1) the single
+  governed `api.stripe.com:443` egress exception (FQDN/CIDR-scoped, not blanket internet); (2) the non-SSO
+  `/webhooks/stripe` endpoint gated by Stripe signature verification + idempotent event dedupe; (3) no PCI
+  scope (Stripe tokenises; ktayl-core never sees card/IBAN); (4) money-never-half-committed via the outbox;
+  (5) Stripe recorded as a DORA third-party ICT provider (test mode).
+- **Decision owner:** AndreLiar. Build authorised: epic BILL-01, starting BILL-010.
