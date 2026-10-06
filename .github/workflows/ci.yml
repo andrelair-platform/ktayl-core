@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17
+        image: postgres:17.4   # PINNED — tbls embeds database_version in the doc; a floating tag drifts
         env:
           POSTGRES_PASSWORD: pw
           POSTGRES_DB: ktayl_core
@@ -60,10 +60,11 @@ jobs:
       - uses: k1LoW/setup-tbls@v1
       - name: ERD drift-check
         run: |
-          OUT="$(tbls diff "$TBLS_DSN" docs/data-model)"
-          if [ -n "$OUT" ]; then
-            echo "::error::docs/data-model drifted from the DB migrations — regenerate the ERD (tbls doc)."
-            echo "$OUT"
+          set +e
+          tbls diff "$TBLS_DSN" docs/data-model | tee /tmp/erd.diff
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ] || [ -s /tmp/erd.diff ]; then
+            echo "::error::docs/data-model drifted from the migrations (or tbls errored, rc=$rc). Regenerate: tbls doc \"\$TBLS_DSN\" docs/data-model --force"
             exit 1
           fi
           echo "✅ ERD docs are in sync with the migrations"
