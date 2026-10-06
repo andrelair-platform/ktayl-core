@@ -5,7 +5,7 @@
 CREATE TABLE invoice (
     id            uuid         PRIMARY KEY,
     policy_number varchar(64)  NOT NULL UNIQUE REFERENCES ingested_policy (policy_number),
-    currency      char(3)      NOT NULL,
+    currency      varchar(3)   NOT NULL,
     total_minor   bigint       NOT NULL CHECK (total_minor > 0),
     status        varchar(16)  NOT NULL DEFAULT 'issued',   -- issued | settled | void
     issued_at     timestamptz  NOT NULL DEFAULT now()

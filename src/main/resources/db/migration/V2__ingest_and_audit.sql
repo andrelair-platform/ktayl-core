@@ -5,7 +5,7 @@
 CREATE TABLE ingested_policy (
     policy_number   varchar(64)  PRIMARY KEY,
     premium_minor   bigint       NOT NULL CHECK (premium_minor > 0),
-    currency        char(3)      NOT NULL,
+    currency        varchar(3)   NOT NULL,
     product_code    varchar(64)  NOT NULL,
     effective_date  date         NOT NULL,
     expiry_date     date         NOT NULL,
