@@ -58,6 +58,8 @@ jobs:
             psql -h localhost -U postgres -d ktayl_core -v ON_ERROR_STOP=1 -c "SET search_path TO billing;" -f "$f"
           done
       - uses: k1LoW/setup-tbls@v1
+        with:
+          version: v1.96.1   # PIN — must match the version the committed baseline was generated with
       - name: ERD drift-check (regenerate from migrations, fail if committed docs are stale)
         run: |
           # tbls doc reliably applies .tbls.yml (mermaid/sort/adjust); regenerate + git-diff is more
