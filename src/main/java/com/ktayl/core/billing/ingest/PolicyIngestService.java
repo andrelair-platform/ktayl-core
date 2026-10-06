@@ -7,6 +7,7 @@ import com.ktayl.core.billing.persistence.IngestedPolicyRepository;
 import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,10 +26,12 @@ public class PolicyIngestService {
 
     private final IngestedPolicyRepository policies;
     private final AuditRepository audit;
+    private final ApplicationEventPublisher events;
 
-    public PolicyIngestService(IngestedPolicyRepository policies, AuditRepository audit) {
+    public PolicyIngestService(IngestedPolicyRepository policies, AuditRepository audit, ApplicationEventPublisher events) {
         this.policies = policies;
         this.audit = audit;
+        this.events = events;
     }
 
     @Transactional
@@ -44,6 +47,8 @@ public class PolicyIngestService {
                 "ingested", Instant.now()));
         audit.save(new AuditEntity("ingested_policy", e.policyNumber(), "INGEST", ACTOR,
                 "premium_minor=" + e.premiumMinor() + " " + e.currency(), Instant.now()));
+        // auto-chain: invoicing listens AFTER this tx commits → raises the invoice (decoupled, best-effort)
+        events.publishEvent(new PolicyIngested(e.policyNumber()));
         log.info("ingested bound policy {} ({} {} eurocents)", e.policyNumber(), e.premiumMinor(), e.currency());
         return Outcome.INGESTED;
     }
