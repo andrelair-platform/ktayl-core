@@ -83,7 +83,7 @@ paths:
         '401': { description: unauthenticated }
         '403': { description: not in Finance group }
         '404': { description: policy not ingested }
-      x-status: planned   # BILL-012/015
+      x-status: live   # BILL-012 (outstanding = Σ open installments; full who-owes-what in BILL-015)
 
   /api/billing/policies/{policyNumber}/invoice:
     post:
@@ -97,7 +97,7 @@ paths:
         '200': { description: already invoiced (idempotent no-op) }
         '404': { description: policy not ingested }
         '409': { description: policy in a non-invoiceable state }
-      x-status: planned   # BILL-012
+      x-status: live   # BILL-012
 
   /api/billing/installments/{id}/pay:
     post:

@@ -13,13 +13,15 @@ import com.ktayl.core.billing.persistence.AuditRepository;
 import com.ktayl.core.billing.persistence.IngestedPolicyRepository;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
-/** L1 — ingest logic: idempotency, happy-path persistence+audit, and poison rejection. */
+/** L1 — ingest logic: idempotency, happy-path persistence+audit+event, and poison rejection. */
 class PolicyIngestServiceTest {
 
     private final IngestedPolicyRepository policies = mock(IngestedPolicyRepository.class);
     private final AuditRepository audit = mock(AuditRepository.class);
-    private final PolicyIngestService svc = new PolicyIngestService(policies, audit);
+    private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+    private final PolicyIngestService svc = new PolicyIngestService(policies, audit, events);
 
     private static final LocalDate D1 = LocalDate.of(2026, 1, 1);
     private static final LocalDate D2 = LocalDate.of(2027, 1, 1);
@@ -34,6 +36,7 @@ class PolicyIngestServiceTest {
         assertThat(svc.ingest(valid())).isEqualTo(Outcome.INGESTED);
         verify(policies).save(any());
         verify(audit).save(any());
+        verify(events).publishEvent(any(PolicyIngested.class)); // auto-chain to invoicing
     }
 
     @Test
@@ -42,6 +45,7 @@ class PolicyIngestServiceTest {
         assertThat(svc.ingest(valid())).isEqualTo(Outcome.SKIPPED_DUPLICATE);
         verify(policies, never()).save(any());
         verify(audit, never()).save(any());
+        verify(events, never()).publishEvent(any()); // no re-chain on a duplicate
     }
 
     @Test
