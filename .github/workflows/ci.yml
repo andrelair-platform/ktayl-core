@@ -66,7 +66,7 @@ jobs:
           TBLS_IMAGE: ghcr.io/k1low/tbls@sha256:0d90f07aed0c423a6012d542358c10b13fcdf15a1074ceee3d73676c87cc2f79
         run: |
           docker run --rm --network host -v "$PWD:/work" -w /work \
-            -e TBLS_DSN="$TBLS_DSN" "$TBLS_IMAGE" doc "$TBLS_DSN" docs/data-model --force
+            "$TBLS_IMAGE" doc -t mermaid --sort -j "$TBLS_DSN" docs/data-model --force
           if ! git diff --quiet -- docs/data-model; then
             echo "::error::docs/data-model drifted from the DB migrations — regenerate + commit the ERD."
             git --no-pager diff -- docs/data-model | head -80
