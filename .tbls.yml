@@ -1,0 +1,17 @@
+# tbls config — reverse-engineers the LIVE (CI-ephemeral) schema into committed docs.
+# The DSN is passed at runtime (CLI arg / TBLS_DSN) so the same config works locally + in CI:
+#   local:  docker run ... ghcr.io/k1low/tbls doc "postgres://…@<pg>:5432/ktayl_core?sslmode=disable" --force
+#   CI:     TBLS_DSN="postgres://…@localhost:5432/ktayl_core?sslmode=disable" tbls diff   # fails on drift
+# The schema is built from the Flyway migrations (src/main/resources/db/migration) applied to an
+# ephemeral Postgres — so this doc is generated from the SAME source of truth as production (the
+# migrations), never hand-drawn, and `tbls diff` fails CI if the committed doc drifts from them.
+docPath: docs/data-model
+# Mermaid (text) ER diagrams, not SVG → deterministic (clean `tbls diff` drift-check) + renders in Docusaurus.
+er:
+  format: mermaid
+format:
+  sort: true
+  adjust: true
+# flyway's bookkeeping table is not part of the domain model
+exclude:
+  - billing.flyway_schema_history

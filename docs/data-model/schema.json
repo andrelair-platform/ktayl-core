@@ -1,0 +1,464 @@
+{
+  "name": "ktayl_core",
+  "tables": [
+    {
+      "name": "billing.audit_log",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "action",
+          "type": "varchar(32)",
+          "nullable": false
+        },
+        {
+          "name": "actor",
+          "type": "varchar(128)",
+          "nullable": false
+        },
+        {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "detail",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "entity",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "type": "varchar(128)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "audit_log_pkey",
+          "def": "CREATE UNIQUE INDEX audit_log_pkey ON billing.audit_log USING btree (id)",
+          "table": "billing.audit_log",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_audit_entity",
+          "def": "CREATE INDEX idx_audit_entity ON billing.audit_log USING btree (entity, entity_id)",
+          "table": "billing.audit_log",
+          "columns": [
+            "entity",
+            "entity_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "audit_log_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "billing.audit_log",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "billing.ingested_policy",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "currency",
+          "type": "varchar(3)",
+          "nullable": false
+        },
+        {
+          "name": "effective_date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "expiry_date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "ingested_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "policy_number",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "premium_minor",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "product_code",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "quote_id",
+          "type": "varchar(64)",
+          "nullable": true
+        },
+        {
+          "name": "status",
+          "type": "varchar(16)",
+          "nullable": false,
+          "default": "'ingested'::character varying"
+        },
+        {
+          "name": "submission_id",
+          "type": "varchar(64)",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ingested_policy_pkey",
+          "def": "CREATE UNIQUE INDEX ingested_policy_pkey ON billing.ingested_policy USING btree (policy_number)",
+          "table": "billing.ingested_policy",
+          "columns": [
+            "policy_number"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "ingested_policy_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (policy_number)",
+          "table": "billing.ingested_policy",
+          "referenced_table": "",
+          "columns": [
+            "policy_number"
+          ]
+        },
+        {
+          "name": "ingested_policy_premium_minor_check",
+          "type": "CHECK",
+          "def": "CHECK ((premium_minor \u003e 0))",
+          "table": "billing.ingested_policy",
+          "referenced_table": "",
+          "columns": [
+            "premium_minor"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "billing.installment",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "amount_minor",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "due_date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "invoice_id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "paid_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "seq",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "varchar(16)",
+          "nullable": false,
+          "default": "'open'::character varying"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_installment_invoice",
+          "def": "CREATE INDEX idx_installment_invoice ON billing.installment USING btree (invoice_id)",
+          "table": "billing.installment",
+          "columns": [
+            "invoice_id"
+          ]
+        },
+        {
+          "name": "installment_invoice_id_seq_key",
+          "def": "CREATE UNIQUE INDEX installment_invoice_id_seq_key ON billing.installment USING btree (invoice_id, seq)",
+          "table": "billing.installment",
+          "columns": [
+            "invoice_id",
+            "seq"
+          ]
+        },
+        {
+          "name": "installment_pkey",
+          "def": "CREATE UNIQUE INDEX installment_pkey ON billing.installment USING btree (id)",
+          "table": "billing.installment",
+          "columns": [
+            "id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "installment_amount_minor_check",
+          "type": "CHECK",
+          "def": "CHECK ((amount_minor \u003e 0))",
+          "table": "billing.installment",
+          "referenced_table": "",
+          "columns": [
+            "amount_minor"
+          ]
+        },
+        {
+          "name": "installment_invoice_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (invoice_id) REFERENCES invoice(id)",
+          "table": "billing.installment",
+          "referenced_table": "billing.invoice",
+          "columns": [
+            "invoice_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "installment_invoice_id_seq_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (invoice_id, seq)",
+          "table": "billing.installment",
+          "referenced_table": "",
+          "columns": [
+            "invoice_id",
+            "seq"
+          ]
+        },
+        {
+          "name": "installment_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "billing.installment",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "billing.invoice",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "currency",
+          "type": "varchar(3)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "policy_number",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "varchar(16)",
+          "nullable": false,
+          "default": "'issued'::character varying"
+        },
+        {
+          "name": "total_minor",
+          "type": "bigint",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "invoice_pkey",
+          "def": "CREATE UNIQUE INDEX invoice_pkey ON billing.invoice USING btree (id)",
+          "table": "billing.invoice",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "invoice_policy_number_key",
+          "def": "CREATE UNIQUE INDEX invoice_policy_number_key ON billing.invoice USING btree (policy_number)",
+          "table": "billing.invoice",
+          "columns": [
+            "policy_number"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "invoice_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "billing.invoice",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "invoice_policy_number_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (policy_number) REFERENCES ingested_policy(policy_number)",
+          "table": "billing.invoice",
+          "referenced_table": "billing.ingested_policy",
+          "columns": [
+            "policy_number"
+          ],
+          "referenced_columns": [
+            "policy_number"
+          ]
+        },
+        {
+          "name": "invoice_policy_number_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (policy_number)",
+          "table": "billing.invoice",
+          "referenced_table": "",
+          "columns": [
+            "policy_number"
+          ]
+        },
+        {
+          "name": "invoice_total_minor_check",
+          "type": "CHECK",
+          "def": "CHECK ((total_minor \u003e 0))",
+          "table": "billing.invoice",
+          "referenced_table": "",
+          "columns": [
+            "total_minor"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "billing.schema_marker",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "initialized",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "module",
+          "type": "varchar(64)",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "schema_marker_pkey",
+          "def": "CREATE UNIQUE INDEX schema_marker_pkey ON billing.schema_marker USING btree (module)",
+          "table": "billing.schema_marker",
+          "columns": [
+            "module"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "schema_marker_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (module)",
+          "table": "billing.schema_marker",
+          "referenced_table": "",
+          "columns": [
+            "module"
+          ]
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "table": "billing.installment",
+      "columns": [
+        "invoice_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "billing.invoice",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (invoice_id) REFERENCES invoice(id)"
+    },
+    {
+      "table": "billing.invoice",
+      "columns": [
+        "policy_number"
+      ],
+      "cardinality": "zero_or_one",
+      "parent_table": "billing.ingested_policy",
+      "parent_columns": [
+        "policy_number"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (policy_number) REFERENCES ingested_policy(policy_number)"
+    }
+  ],
+  "driver": {
+    "name": "postgres",
+    "database_version": "PostgreSQL 17.4 (Debian 17.4-1.pgdg120+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit",
+    "meta": {
+      "current_schema": "billing",
+      "search_paths": [
+        "billing"
+      ],
+      "dict": {
+        "Functions": "Stored procedures and functions"
+      }
+    }
+  }
+}
