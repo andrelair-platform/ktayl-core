@@ -47,6 +47,12 @@ user via Authentik SSO. **Container** — one Spring Boot deployable; modules `b
 `ktayl-core`/`ktayl-core-prod`, Kargo git-Warehouse (BILL-016). Boundaries: owns the `billing` schema;
 integrates with Underwriting/ERPNext/Stripe as external systems. → full diagrams in [architecture §1–§2](../architecture.md).
 
+The **code-generated C4 container diagram** (mingrammer `diagrams`, source
+[`docs/diagrams/ktayl_core_container.py`](../diagrams/ktayl_core_container.py)) has its own page —
+**[C4 — Container view](./c4-container.md)**:
+
+![ktayl-core C4 container view](./img/ktayl-core-container.svg)
+
 ## 4. Data design
 **Store:** PostgreSQL, **schema-per-module** (`billing`); money is **`bigint` eurocents** (never float);
 `audit_log` is append-only. **Migrations:** Flyway (`V1` baseline + `schema_marker`; `V2` ingest + audit —
