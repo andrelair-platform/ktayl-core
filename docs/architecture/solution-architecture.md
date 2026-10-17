@@ -21,6 +21,10 @@ hosts Billing (and future insurance domains) as *modules*, not separate services
 → [PRD](../prd.md), [architecture](../architecture.md).
 
 ## 2. Requirements
+
+> **Traceability:** every requirement is threaded ID → component → test → pipeline → evidence in
+> [`../traceability-matrix.md`](../traceability-matrix.md) (it also surfaces the requirements not yet tested).
+
 ### 2.1 Functional
 Ingest a bound policy's premium · raise a premium invoice + installment schedule · capture payment (Stripe
 test, SEPA DD, webhook-driven) · post double-entry Journal Entries to ERPNext · expose who-owes-what. → PRD.
