@@ -35,6 +35,13 @@ Spring Modulith `ApplicationModules.verify()` test, not left to discipline.
 
 ## Architecture
 
+![ktayl-core — C4 container view](docs/architecture/img/ktayl-core-container.png)
+
+> **C4 container view**, generated from code ([`docs/diagrams/ktayl_core_container.py`](docs/diagrams/ktayl_core_container.py) — mingrammer `diagrams` + Graphviz). Full write-up: **[C4 — Container view](docs/architecture/c4-container.md)**.
+
+<details>
+<summary>Text view</summary>
+
 ```
 Authentik SSO ─▶ Ingress ─▶ ktayl-core (Spring Boot, one pod set)
                                  │  src/main/java/com/ktayl/core/
@@ -47,6 +54,8 @@ Authentik SSO ─▶ Ingress ─▶ ktayl-core (Spring Boot, one pod set)
                                  ▼
                          PostgreSQL (one DB, schema-per-module)
 ```
+
+</details>
 
 | Component | Choice |
 |---|---|
