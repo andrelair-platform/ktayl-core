@@ -1,4 +1,4 @@
-# Traceability Matrix — ktayl-core (Billing)
+# Traceability Matrix — ktayl-core (Billing + Complaints)
 
 > Threads every requirement **PRD → architecture component → test → pipeline → evidence**, so a change to
 > one requirement shows exactly what else must move. Path-C Definition-of-Done item
@@ -58,5 +58,35 @@ priority order:
 > *If SEC-002 changes tomorrow:* edit `billing.api` `/webhooks/stripe` + the `shared` Stripe client →
 > update (create) `PaymentWebhookIntegrationTest` → it re-gates at the Security/Integration stage → the
 > evidence is that CI run. One row, the whole blast radius.
+
+---
+
+## Complaints module (CMPL-01 slice)
+
+> The Phase-3 hexagonal slice (`com.ktayl.core.complaints`). IDs `CFR/CSEC/CNFR` map to the
+> `spec-complaints/SPEC.md` ACs. As-built: [`docs/complaints/as-built.md`](complaints/as-built.md).
+
+| ID | Requirement (observable) | Architecture component | Test (file · case) | Pipeline | Evidence / status |
+|---|---|---|---|---|---|
+| CFR-001 | Register yields one complaint; same `Idempotency-Key` → same complaint, no dup | `complaints.domain` `Complaint.register` + `application.RegisterComplaint` | `complaints/domain/ComplaintTest` · `application/RegisterComplaintTest` · `…/ComplaintPersistenceAdapterTest` | `build-test` (unit+integration) | ✅ tested |
+| CFR-002 | Forward-only lifecycle; wrong predecessor / on CLOSED → 409 | `complaints.domain` `Complaint` state machine | `complaints/domain/ComplaintLifecycleTest` | `build-test` (unit) | ✅ tested |
+| CFR-003 | `acknowledge` sets the ack-due **placeholder** clock; overdue is strict-after | `complaints.domain` `acknowledge` / `acknowledgementOverdueAt` | `complaints/domain/ComplaintLifecycleTest` (boundary) | `build-test` (unit) | ✅ tested |
+| CFR-004 | **Every** transition writes an append-only audit row (from→to, actor) | `application.ComplaintLifecycle` + `infrastructure.persistence` `AuditTrailAdapter` | `complaints/application/ComplaintLifecycleTest` | `build-test` (unit) | ✅ tested |
+| CFR-005 | `GET` returns `ComplaintSummary` (never the entity) | `api.ComplaintSummary` + `application.ComplaintService` | `complaints/infrastructure/web/ComplaintApiContractTest` | `build-test` (L3) | ✅ tested |
+| CSEC-001 | Every `/api/**` requires a valid token → 401 | `shared` OIDC resource-server | `ComplaintApiContractTest` (no-token) | `build-test` (L3) | ✅ tested |
+| CSEC-002 | Authz = `Complaints Handler` group → 403 without it | `shared` groups→authority + controller `@PreAuthorize` | `ComplaintApiContractTest` (missing-group) | `build-test` (L3) | ✅ tested |
+| CSEC-003 | `complaints` is a CLOSED module; only `api` is published | module boundary + `api` NamedInterface | `ModularityTests` | `build-test` | ✅ tested (build fails on a cross-module tap) |
+| CSEC-004 | Actor taken from the token, never a placeholder (attribution) | `infrastructure.web` `actor(jwt)` → use cases → audit | `RegisterComplaintTest` (attribution) ; **end-to-end live** | `build-test` + `qa-gate` | 🟡 unit-proven; live attribution at CMPL-014 |
+| CNFR-001 | `complaints` schema matches its migrations (ERD never drifts) | `data-model/` + Flyway V4–V6 | `schema-erd` (regenerate + CI auto-commits) | `schema-erd` | ✅ CI-gated |
+| CNFR-002 | Domain is framework-pure (survives the tech, ADR-013) | `complaints.domain` | `HexagonalArchitectureTests` | `build-test` | ✅ tested (build fails if domain imports Spring/JPA) |
+| CNFR-003 | HTTP contract matches `complaints.openapi.yaml` (404/409/422/401/403/400) | `infrastructure.web` + `ComplaintExceptionHandler` | `ComplaintApiContractTest` | `build-test` (L3) | ✅ tested |
+| CNFR-004 | Observability triad live (logs→Loki, trace→Tempo, metrics scrape) — ADR-012 | `shared` actuator + OTel wiring | ⚠️ live only | `qa-gate` (L5) | 🟠 **pending CMPL-014** (first deploy) |
+
+**What's honestly not yet covered (→ CMPL-014, the first ktayl-core deploy + live QA gate):** CNFR-004
+(the triad live), CSEC-004 end-to-end attribution over the real token, and the **L4 smoke**
+(register→ack→close over the dev ingress). Green CI proves the slice in isolation; the live QA gate is the
+backstop before any prod promotion.
+
+---
 
 Keep this matrix current in the **same PR** as any requirement/code change (`documentation-standard.md`).
