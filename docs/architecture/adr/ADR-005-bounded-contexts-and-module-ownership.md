@@ -10,34 +10,66 @@ definition of what a module owns and how modules interact.
 
 ## Decision
 
-### Bounded contexts (business boundaries drive the modules — not folder count)
-~8 contexts, each holding several modules, all inside `ktayl-core`:
+### The two-level model — ~8–12 bounded contexts, each with MANY sub-capabilities (how we scale to hundreds)
+**An insurer does not have hundreds of independent business domains — it has hundreds of capabilities
+belonging to a small number of bounded contexts.** ktayl will have **~8–12 contexts** but, over time,
+**dozens-to-hundreds of sub-capabilities** inside them. The number you *govern* is the **context** count;
+capabilities multiply *within* a context freely. Business boundaries (contexts) drive architecture — the
+count of folders, modules, or Spring `@ApplicationModule`s does not.
 
-| Bounded context | Modules |
+Mapping onto Spring Modulith (resolves the naming ambiguity — "module" means two things):
+- **Bounded context = a top-level `@ApplicationModule`** (the governed unit, owns a **schema**, has the
+  `api/ internal/ events/` contract, is the extraction unit if it ever earns it — ADR-008).
+- **Sub-capability = a nested module** *inside* a context (`claims.fnol`, `claims.settlement`, …). They
+  share the context's schema + aggregates; they do **not** each get their own schema, published API, or
+  extraction story. `ApplicationModules.verify()` governs the **context** boundaries; intra-context
+  structure is ordinary package discipline.
+
+So "100 modules, ~10 contexts" is the target shape — and **module count is never a reason to split a
+context or extract a service** (ADR-008: size is not a force). A context grows internally; it is split
+only if a true sub-boundary emerges (a distinct ubiquitous language + its own invariants), not because it
+got large.
+
+| Bounded context (top-level module, owns a schema) | Sub-capabilities (nested modules inside it) |
 |---|---|
-| **Party & Distribution** | Customer/MDM (shared kernel), Broker, CRM, binders, commissions |
-| **Product & Policy (PAS)** | Products, quotes, policies, renewals, endorsements |
+| **Party & Distribution** | Customer/MDM (shared kernel), Broker, CRM, relationships, binders, commissions |
+| **Product & Policy (PAS)** | Products, quotations, policies, renewals, endorsements |
 | **Underwriting** | Risk evaluation, rating/pricing, referral, approval |
-| **Claims** | FNOL, assessment, settlement, subrogation, recovery |
-| **Billing & Finance** | Premium, invoicing, cash allocation, GL-posting, reserving |
-| **Reinsurance** | Treaty/fac, cessions, bordereaux, recoveries |
+| **Claims** | FNOL/notification, assessment, settlement, subrogation, recovery |
+| **Billing & Finance** | Premium, invoicing, cash allocation, payments, GL-posting, reserving |
+| **Reinsurance** | Treaty, facultative, cessions, bordereaux, recoveries |
 | **Compliance & Audit** | DORA-internal, GDPR, AML, regulatory reporting, audit trail |
-| **Documents** | Generation, OCR/IDP, classification, retention |
-| (+ Risk-Engineering, International-Programs, Submission, Complaints, Procurement as modules) | |
+| **Documents** | Upload, generation, OCR/IDP, classification, retention |
+| **Risk Engineering** | Site audit, inspection, prevention recommendations, scoring |
+| **International Programs** | Master/local policies, PO/SO network, cross-border flows |
+| **Submission** | Intake, exposure dossier, triage |
+| **Complaints** | Register, statutory deadlines, ombudsman escalation, root-cause |
+| **Procurement & CLM** | Business-vendor contracts, lifecycle, obligations *(or adopt)* |
 
-### What a module OWNS (the enforceable contract)
-Standard Spring Modulith package layout per module (reference: Claims):
+> **Governance rule:** adding a *sub-capability* to an existing context is routine (no ADR). Adding or
+> splitting a **bounded context** is an architectural change → a short ADR (it changes a schema boundary +
+> a published contract). This keeps the small set of contexts — the thing that must stay coherent — under
+> deliberate control while capabilities multiply freely underneath.
+
+### What a context (top-level module) OWNS (the enforceable contract)
+Standard Spring Modulith layout — the **published contract is at the CONTEXT level**; sub-capabilities are
+ordinary nested packages that share the context's schema + aggregates (reference: Claims):
 ```
-claims/
-├── api/            # PUBLISHED: interfaces + DTOs other modules may use (ClaimOperations, ClaimSummary)
-├── internal/       # PRIVATE: domain (aggregates/invariants), application, persistence, web
-│   └── domain/     #   Claim, ClaimStatus, ClaimSettlement — never referenced from outside
-└── events/         # PUBLISHED domain events (ClaimRegistered, ClaimSettled)
+claims/                         # the bounded context (owns schema `claims`)
+├── api/            # PUBLISHED: interfaces + DTOs other CONTEXTS may use (ClaimOperations, ClaimSummary)
+├── events/         # PUBLISHED domain events (ClaimRegistered, ClaimSettled)
+└── internal/       # PRIVATE to the context — no other context may reference these:
+    ├── fnol/       #   sub-capability (nested module)
+    ├── assessment/ #   sub-capability
+    ├── settlement/ #   sub-capability
+    └── domain/     #   Claim, ClaimStatus, ClaimSettlement — aggregates/invariants, never referenced outside
 ```
 Rules:
-1. A module owns its **state, invariants, and business operations**. Its `internal/` is private.
-2. Other modules interact **only** through the module's `api/` (published interface) or its `events/`
-   (published domain events) — **never** its repositories, entities, or tables.
+1. A **context** owns its **schema, state, invariants, and business operations**. Its `internal/` (including
+   every sub-capability inside it) is private. Sub-capabilities do **not** publish their own cross-context API.
+2. Other **contexts** interact **only** through the context's `api/` (published interface) or its `events/`
+   (published domain events) — **never** its repositories, entities, or tables. (Within a context,
+   sub-capabilities may call each other directly — that's ordinary internal structure.)
 3. Example invariant: Finance must **not** mutate a Claim to issue a payment — it calls a published Claims
    operation or reacts to `ClaimSettled`. This yields **logical independence inside a shared deployment**.
 4. **Customer/Party is a shared kernel**, not a free-for-all: a small, stable published model (IDs + a
