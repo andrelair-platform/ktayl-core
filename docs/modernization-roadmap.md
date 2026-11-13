@@ -49,8 +49,15 @@ underwriting-ingest; the new set starts at 004):
 | [ADR-008](architecture/adr/ADR-008-service-extraction-criteria.md) | When a module **earns** extraction to a service (the evidence test). |
 | [ADR-009](architecture/adr/ADR-009-strangler-migration-and-rollback.md) | Strangler migration mechanics + rollback/reconciliation policy. |
 | [ADR-010](architecture/adr/ADR-010-background-jobs-and-idempotency.md) | Background-job execution model under N replicas + idempotency for money/integration ops. |
+| [ADR-011](architecture/adr/ADR-011-product-configure-products-as-data.md) | **Product Configure** — insurance products as versioned **data/config**, not code (a capability in the Product&Policy context). |
 
 ## The target shape (reference)
+
+Living diagram-as-code (adapted from the InsureMO layered middle-office model onto ktayl's
+modular-monolith decisions — extend as contexts/capabilities land):
+**[`docs/architecture/img/ktayl-si-target.svg`](architecture/img/ktayl-si-target.svg)**
+(source `docs/diagrams/ktayl_si_target.py`).
+
 ```
 Next.js (one app / few BFFs)
         │
