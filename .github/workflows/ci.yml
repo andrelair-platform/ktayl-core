@@ -2,7 +2,7 @@ name: CI
 on:
   push:
     branches: [main]
-    paths: ['src/**', 'pom.xml', 'Dockerfile', '.github/workflows/ci.yml', '.tbls.yml', 'docs/data-model/**']
+    paths: ['src/**', 'pom.xml', 'Dockerfile', '.github/workflows/ci.yml', '.tbls.yml', '.trivyignore', 'docs/data-model/**']
   # PR trigger is intentionally NOT path-filtered: a workflow skipped by a path filter leaves its
   # required checks "Expected" forever and deadlocks the PR (GitHub docs). The workflow always runs
   # on PRs to main; a job-level `changes` filter skips the heavy jobs on a docs-only PR; the always-
@@ -38,6 +38,7 @@ jobs:
               - 'Dockerfile'
               - '.github/workflows/ci.yml'
               - '.tbls.yml'
+              - '.trivyignore'
               - 'docs/data-model/**'
 
   # ── L0/L1 gate (runs when code changed): compile + unit + the module-boundary verification ──
