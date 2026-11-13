@@ -49,6 +49,21 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- observability triad (ADR-012): METRICS → Prometheus scrape · TRACES → OTLP → otelcol/Tempo
+             · LOGS → structured stdout (config-only) → Loki. Versions managed by the Spring Boot BOM. -->
+        <dependency>                                     <!-- metrics: /actuator/prometheus -->
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <dependency>                                     <!-- traces: Micrometer Observation → OTel spans -->
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+        <dependency>                                     <!-- traces: OTLP exporter → otelcol -->
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+
         <!-- persistence: JPA + Flyway + Postgres (schema-per-module) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
