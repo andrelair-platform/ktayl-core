@@ -38,10 +38,21 @@ public class ComplaintJpaEntity {
     @Column(name = "idempotency_key", unique = true)
     private String idempotencyKey;
 
+    // lifecycle state (CMPL-012) — null until the relevant transition occurs
+    @Column(name = "acknowledgement_due_at")
+    private Instant acknowledgementDueAt;
+
+    @Column(name = "assigned_to")
+    private String assignedTo;
+
+    @Column(name = "resolution_note")
+    private String resolutionNote;
+
     protected ComplaintJpaEntity() {} // JPA
 
     public ComplaintJpaEntity(UUID id, String channel, String subjectRef, String summary, String status,
-            Instant registeredAt, String idempotencyKey) {
+            Instant registeredAt, String idempotencyKey, Instant acknowledgementDueAt, String assignedTo,
+            String resolutionNote) {
         this.id = id;
         this.channel = channel;
         this.subjectRef = subjectRef;
@@ -49,6 +60,9 @@ public class ComplaintJpaEntity {
         this.status = status;
         this.registeredAt = registeredAt;
         this.idempotencyKey = idempotencyKey;
+        this.acknowledgementDueAt = acknowledgementDueAt;
+        this.assignedTo = assignedTo;
+        this.resolutionNote = resolutionNote;
     }
 
     public UUID getId() { return id; }
@@ -58,4 +72,7 @@ public class ComplaintJpaEntity {
     public String getStatus() { return status; }
     public Instant getRegisteredAt() { return registeredAt; }
     public String getIdempotencyKey() { return idempotencyKey; }
+    public Instant getAcknowledgementDueAt() { return acknowledgementDueAt; }
+    public String getAssignedTo() { return assignedTo; }
+    public String getResolutionNote() { return resolutionNote; }
 }

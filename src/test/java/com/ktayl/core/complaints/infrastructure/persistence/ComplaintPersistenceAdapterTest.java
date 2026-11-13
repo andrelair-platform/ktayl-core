@@ -6,6 +6,7 @@ import com.ktayl.core.complaints.domain.Complaint;
 import com.ktayl.core.complaints.domain.ComplaintChannel;
 import com.ktayl.core.complaints.domain.ComplaintRepository;
 import com.ktayl.core.complaints.domain.ComplaintStatus;
+import java.time.Duration;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,9 +19,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * L2 — the persistence adapter against a REAL Postgres + the REAL Flyway migrations (V1–V5), not mocks.
- * Proves the entity↔domain mapping round-trips, the {@code complaints} schema/columns match the JPA model,
- * and the DB unique index backstops idempotency. Runs in CI (Docker present).
+ * L2 — the persistence adapter against a REAL Postgres + the REAL Flyway migrations (V1–V6), not mocks.
+ * Proves the entity↔domain mapping round-trips, the {@code complaints} schema/columns match the JPA model
+ * (incl. the CMPL-012 lifecycle columns), and the DB unique index backstops idempotency. Runs in CI.
  */
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -57,5 +58,20 @@ class ComplaintPersistenceAdapterTest {
 
         assertThat(repository.findByIdempotencyKey("idem-find")).isPresent();
         assertThat(repository.findByIdempotencyKey("nope")).isEmpty();
+    }
+
+    @Test
+    void persists_the_lifecycle_fields_across_updates() {
+        Complaint c = Complaint.register(ComplaintChannel.PHONE, "POL-5", "late settlement", "idem-lc", NOW);
+        c.acknowledge(NOW, Duration.ofDays(2));
+        c.assign("adjuster.sophie");
+        c.resolve("settled and apologised");
+        repository.save(c); // single upsert carrying all lifecycle columns (V6)
+
+        Complaint found = repository.findById(c.id()).orElseThrow();
+        assertThat(found.status()).isEqualTo(ComplaintStatus.RESOLVED);
+        assertThat(found.acknowledgementDueAt()).isEqualTo(NOW.plus(Duration.ofDays(2)));
+        assertThat(found.assignedTo()).isEqualTo("adjuster.sophie");
+        assertThat(found.resolutionNote()).isEqualTo("settled and apologised");
     }
 }
