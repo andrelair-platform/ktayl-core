@@ -2,13 +2,14 @@
 
 ## Tables
 
-| Name                                                  | Columns | Comment | Type       |
-| ----------------------------------------------------- | ------- | ------- | ---------- |
-| [billing.audit_log](billing.audit_log.md)             | 7       |         | BASE TABLE |
-| [billing.ingested_policy](billing.ingested_policy.md) | 10      |         | BASE TABLE |
-| [billing.installment](billing.installment.md)         | 7       |         | BASE TABLE |
-| [billing.invoice](billing.invoice.md)                 | 6       |         | BASE TABLE |
-| [billing.schema_marker](billing.schema_marker.md)     | 2       |         | BASE TABLE |
+| Name                                                    | Columns | Comment | Type       |
+| ------------------------------------------------------- | ------- | ------- | ---------- |
+| [billing.audit_log](billing.audit_log.md)               | 7       |         | BASE TABLE |
+| [billing.ingested_policy](billing.ingested_policy.md)   | 10      |         | BASE TABLE |
+| [billing.installment](billing.installment.md)           | 7       |         | BASE TABLE |
+| [billing.invoice](billing.invoice.md)                   | 6       |         | BASE TABLE |
+| [billing.schema_marker](billing.schema_marker.md)       | 2       |         | BASE TABLE |
+| [complaints.schema_marker](complaints.schema_marker.md) | 2       |         | BASE TABLE |
 
 ## Relations
 
@@ -57,6 +58,10 @@ erDiagram
   bigint total_minor
 }
 "billing.schema_marker" {
+  timestamp_with_time_zone initialized
+  varchar_64_ module
+}
+"complaints.schema_marker" {
   timestamp_with_time_zone initialized
   varchar_64_ module
 }
