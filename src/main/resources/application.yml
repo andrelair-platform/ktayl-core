@@ -63,3 +63,8 @@ billing:
     stream: ${BILLING_NATS_STREAM:UNDERWRITING_EVENTS}
     subject: ${BILLING_NATS_SUBJECT:insurance.underwriting.bound-risk}
     durable: ${BILLING_NATS_DURABLE:billing-ingest}
+
+# Complaints (CMPL-012): the acknowledgement-due PLACEHOLDER window (next-action SLA marker — deliberately
+# NOT the ACPR/EIOPA/IDD statutory deadline). ISO-8601 duration; acknowledge() sets due = now + this.
+complaints:
+  acknowledgement-window: ${COMPLAINTS_ACK_WINDOW:P2D}

@@ -22,8 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class RegisterComplaint {
 
     private static final Logger log = LoggerFactory.getLogger(RegisterComplaint.class);
-    /** Seam for the acting principal — CMPL-013's web adapter supplies the authenticated OIDC subject. */
-    private static final String ACTOR = "system";
 
     private final ComplaintRepository complaints;
     private final AuditTrail audit;
@@ -39,7 +37,7 @@ public class RegisterComplaint {
     }
 
     @Transactional
-    public ComplaintRegistration handle(RegisterComplaintCommand command) {
+    public ComplaintRegistration handle(RegisterComplaintCommand command, String actor) {
         // Idempotent retry: same key → return the already-registered complaint, no second event/audit.
         if (command.idempotencyKey() != null && !command.idempotencyKey().isBlank()) {
             Optional<Complaint> existing = complaints.findByIdempotencyKey(command.idempotencyKey());
@@ -54,7 +52,7 @@ public class RegisterComplaint {
                 command.idempotencyKey(), Instant.now(clock));
         Complaint saved = complaints.save(complaint);
 
-        audit.record("complaint", saved.id(), "COMPLAINT_REGISTERED", ACTOR,
+        audit.record("complaint", saved.id(), "COMPLAINT_REGISTERED", actor,
                 "channel=" + saved.channel() + " subjectRef=" + saved.subjectRef());
         events.publishEvent(saved.registeredEvent());
         log.info("complaint registered id={} channel={}", saved.id(), saved.channel());

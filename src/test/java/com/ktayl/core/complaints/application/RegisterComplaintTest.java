@@ -38,12 +38,14 @@ class RegisterComplaintTest {
         when(complaints.save(any(Complaint.class))).thenAnswer(inv -> inv.getArgument(0)); // echo the saved aggregate
 
         var cmd = new RegisterComplaintCommand(ComplaintChannel.EMAIL, "POL-42", "premium overcharged", "idem-1");
-        ComplaintRegistration result = useCase.handle(cmd);
+        ComplaintRegistration result = useCase.handle(cmd, "agent.kanmegnea");
 
         assertThat(result.created()).isTrue();
         assertThat(result.complaintId()).isNotNull();
         verify(complaints).save(any(Complaint.class));
-        verify(audit).record(eq("complaint"), eq(result.complaintId()), eq("COMPLAINT_REGISTERED"), any(), any());
+        // actor threaded from the caller into the audit trail (attribution, not a placeholder)
+        verify(audit).record(eq("complaint"), eq(result.complaintId()), eq("COMPLAINT_REGISTERED"),
+                eq("agent.kanmegnea"), any());
         verify(events).publishEvent(any(ComplaintRegistered.class));
     }
 
@@ -53,7 +55,7 @@ class RegisterComplaintTest {
         when(complaints.findByIdempotencyKey("idem-1")).thenReturn(Optional.of(existing));
 
         var cmd = new RegisterComplaintCommand(ComplaintChannel.EMAIL, "POL-42", "premium overcharged", "idem-1");
-        ComplaintRegistration result = useCase.handle(cmd);
+        ComplaintRegistration result = useCase.handle(cmd, "agent.kanmegnea");
 
         assertThat(result.created()).isFalse();
         assertThat(result.complaintId()).isEqualTo(existing.id());
@@ -67,7 +69,7 @@ class RegisterComplaintTest {
         when(complaints.save(any(Complaint.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var cmd = new RegisterComplaintCommand(ComplaintChannel.PHONE, null, "call dropped", "   ");
-        ComplaintRegistration result = useCase.handle(cmd);
+        ComplaintRegistration result = useCase.handle(cmd, "agent.kanmegnea");
 
         assertThat(result.created()).isTrue();
         verify(complaints, never()).findByIdempotencyKey(any()); // blank key → no lookup
