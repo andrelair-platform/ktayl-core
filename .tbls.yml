@@ -1,12 +1,15 @@
 # tbls config — reverse-engineers the LIVE (CI-ephemeral) schema into committed docs.
-# The DSN is passed at runtime (CLI arg / TBLS_DSN) so the same config works locally + in CI:
-#   local:  docker run ... ghcr.io/k1low/tbls doc "postgres://…@<pg>:5432/ktayl_core?sslmode=disable" --force
-#   CI:     TBLS_DSN="postgres://…@localhost:5432/ktayl_core?sslmode=disable" tbls diff   # fails on drift
-# The schema is built from the Flyway migrations (src/main/resources/db/migration) applied to an
-# ephemeral Postgres — so this doc is generated from the SAME source of truth as production (the
-# migrations), never hand-drawn, and `tbls diff` fails CI if the committed doc drifts from them.
+# CI OWNS the ERD: the `schema-erd` job (.github/workflows/ci.yml) applies the Flyway migrations to an
+# ephemeral Postgres and runs `tbls doc` on the canonical x86_64 runner, then COMMITS the result back to
+# the PR branch — so the ERD regenerates itself and is never hand-maintained. You normally never run tbls.
+# Manual regen (only if ever needed) — MUST be x86_64 to match CI's database_version (an arm Mac false-drifts;
+# use `docker run --platform linux/amd64 postgres:17.4` or the controller):
+#   docker run --rm --network host -v "$PWD:/work" -w /work ghcr.io/k1low/tbls@<digest> \
+#     doc -t mermaid --sort -j "postgres://…@localhost:5432/ktayl_core?sslmode=disable&search_path=billing" docs/data-model --force
+# The schema is built from the migrations (src/main/resources/db/migration) — the SAME source of truth as
+# production — so this doc is generated, never hand-drawn.
 docPath: docs/data-model
-# Mermaid (text) ER diagrams, not SVG → deterministic (clean `tbls diff` drift-check) + renders in Docusaurus.
+# Mermaid (text) ER diagrams, not SVG → deterministic (byte-stable regeneration) + renders in Docusaurus.
 er:
   format: mermaid
 format:
