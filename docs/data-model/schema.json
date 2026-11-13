@@ -418,6 +418,45 @@
           ]
         }
       ]
+    },
+    {
+      "name": "complaints.schema_marker",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "initialized",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "module",
+          "type": "varchar(64)",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "schema_marker_pkey",
+          "def": "CREATE UNIQUE INDEX schema_marker_pkey ON complaints.schema_marker USING btree (module)",
+          "table": "complaints.schema_marker",
+          "columns": [
+            "module"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "schema_marker_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (module)",
+          "table": "complaints.schema_marker",
+          "referenced_table": "",
+          "columns": [
+            "module"
+          ]
+        }
+      ]
     }
   ],
   "relations": [
