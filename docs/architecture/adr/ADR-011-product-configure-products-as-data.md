@@ -1,6 +1,6 @@
 # ADR-011 — Product Configure: insurance products as data, not code
 
-**Status:** Proposed (2026-11-13) · **Owner:** SA/TL · Lives in the **Product & Policy** context (ADR-005).
+**Status:** Accepted (2026-11-13 — ratified) · **Owner:** SA/TL · Lives in the **Product & Policy** context (ADR-005).
 **Prompted by:** the InsureMO reference architecture (its "Product Configure" tier) — the one idea from that
 middle-office model worth committing.
 

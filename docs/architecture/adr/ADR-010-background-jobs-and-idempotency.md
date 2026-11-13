@@ -1,6 +1,6 @@
 # ADR-010 — Background-job execution under N replicas, and idempotency
 
-**Status:** Proposed (2026-11-13) · **Owner:** SA/TL.
+**Status:** Accepted (2026-11-13 — ratified) · **Owner:** SA/TL.
 
 ## Context
 `ktayl-core` runs **2–3 replicas** for availability. A naïve Spring `@Scheduled` method runs **on every

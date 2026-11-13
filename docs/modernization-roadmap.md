@@ -1,6 +1,6 @@
 # ktayl SI modernization roadmap — consolidate the insurance core into `ktayl-core`
 
-**Status:** Proposed (2026-11-13) · **Owner:** SA/TL · **Supersedes nothing** (additive planning).
+**Status:** Accepted (2026-11-13 — ratified) · **Owner:** SA/TL · **Supersedes nothing** (additive planning).
 
 ## Why this exists
 

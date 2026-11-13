@@ -1,6 +1,6 @@
 # ADR-004 — `ktayl-core` modular monolith is the SI target; existing-service migration is evidence-gated
 
-**Status:** Proposed (2026-11-13) · **Owner:** SA/TL · **Context:** the ktayl insurance IS consolidation
+**Status:** Accepted (2026-11-13 — ratified) · **Owner:** SA/TL · **Context:** the ktayl insurance IS consolidation
 (see [modernization-roadmap.md](../../modernization-roadmap.md)). Builds on ADR-001 (stack) and the org
 rule `architecture-strategy.md` (*modular-monolith-first*).
 

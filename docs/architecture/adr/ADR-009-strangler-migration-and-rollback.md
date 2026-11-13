@@ -1,6 +1,6 @@
 # ADR-009 — Strangler migration and rollback policy
 
-**Status:** Proposed (2026-11-13) · **Owner:** SA/TL · Follows ADR-004/008. Governs roadmap Phase 5.
+**Status:** Accepted (2026-11-13 — ratified) · **Owner:** SA/TL · Follows ADR-004/008. Governs roadmap Phase 5.
 
 ## Context
 When Phase-4 evidence justifies folding an existing service (e.g. Claims) into `ktayl-core`, a big-bang
