@@ -112,7 +112,8 @@ Deploy the new ktayl-core image (same single deployable — Complaints adds no n
 the adversarial **QA agent** pass against the live module (`qa-gate.md`).
 - **AC** ✓ ktayl-core dev app Synced/Healthy with the Complaints endpoints live; ✓ the QA gate's 12 coverage
   areas pass (happy paths, validation→4xx, not-found→404, **state guards→409**, idempotency, authz,
-  observability: request logs actually emitted, no 500s); ✓ blockers fixed + re-verified on the converged pod.
+  observability: **the full triad** — structured logs emitted to stdout, a **trace appears in Tempo** for a
+  register→close flow, and metrics scrape works (ADR-012), no 500s); ✓ blockers fixed + re-verified on the converged pod.
 - **DoD** QA pass clean (or triaged); the vertical slice demonstrably runs end-to-end on dev. (Prod promotion
   is a **later** CODEOWNERS/Kargo step — not in this slice.)
 

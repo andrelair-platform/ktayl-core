@@ -29,11 +29,27 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
+        include: health,info,prometheus   # METRICS: /actuator/prometheus, scraped by the platform Prometheus
   endpoint:
     health:
       probes:
         enabled: true               # /actuator/health/liveness + /readiness for k8s probes
+  # TRACES (ADR-012): Micrometer Tracing → OTLP → the platform otelcol → Tempo. Endpoint + sampling are
+  # env-overridable (dev defaults to sample-all + the in-cluster collector; prod lowers the rate).
+  tracing:
+    sampling:
+      probability: ${OTEL_TRACES_SAMPLING:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://otelcol-opentelemetry-collector.observability.svc:4318/v1/traces}
+
+# LOGS (ADR-012): structured JSON to stdout (the 12-factor event stream) → Promtail → Loki. Micrometer
+# Tracing injects traceId/spanId into the MDC, so every log line is CORRELATED to its trace — this is
+# what makes the triad cohesive (a log → its trace → its metrics). Local dev can override to plain text.
+logging:
+  structured:
+    format:
+      console: ${LOG_STRUCTURED_FORMAT:ecs}
 
 server:
   port: 8080
