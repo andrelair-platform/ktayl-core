@@ -1,6 +1,6 @@
 # ADR-007 — Internal domain events vs NATS integration events (+ transactional outbox)
 
-**Status:** Proposed (2026-11-13) · **Owner:** SA/TL · Follows ADR-005/006.
+**Status:** Accepted (2026-11-13 — ratified) · **Owner:** SA/TL · Follows ADR-005/006.
 
 ## Context
 The platform standard async bus is **NATS/JetStream**. The trap when consolidating into a modular

@@ -1,6 +1,6 @@
 # ADR-006 — PostgreSQL schema ownership and transaction strategy
 
-**Status:** Proposed (2026-11-13) · **Owner:** SA/TL · Follows ADR-005.
+**Status:** Accepted (2026-11-13 — ratified) · **Owner:** SA/TL · Follows ADR-005.
 
 ## Context
 `ktayl-core` runs on one CNPG cluster with **schema-per-module**. A schema is *not automatically* a

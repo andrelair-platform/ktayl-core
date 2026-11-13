@@ -1,6 +1,6 @@
 # ADR-005 — Bounded contexts and module ownership in `ktayl-core`
 
-**Status:** Proposed (2026-11-13) · **Owner:** SA/TL · Follows ADR-004.
+**Status:** Accepted (2026-11-13 — ratified) · **Owner:** SA/TL · Follows ADR-004.
 
 ## Context
 A modular monolith only works if modules have **explicit boundaries and own their state**. The failure

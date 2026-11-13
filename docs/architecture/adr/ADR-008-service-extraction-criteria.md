@@ -1,6 +1,6 @@
 # ADR-008 — When a module earns extraction to a separate service
 
-**Status:** Proposed (2026-11-13) · **Owner:** SA/TL · Follows ADR-004.
+**Status:** Accepted (2026-11-13 — ratified) · **Owner:** SA/TL · Follows ADR-004.
 
 ## Context
 ADR-004 makes modules the default. We need an explicit, evidence-based test for the exception — when a
