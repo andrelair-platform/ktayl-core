@@ -9,8 +9,9 @@ spec: docs/specs/spec-complaints/SPEC.md
 readiness_gate:
   verdict: PASS
   rationale: >-
-    Greenfield domain (0 prod risk), stack+architecture ratified (ADR-001/004..011), boundary enforced by
-    ModularityTests, Tier-A test layers in the DoD. No money/PSP/external-egress/cross-service surface —
+    Greenfield domain (0 prod risk), stack+architecture ratified (ADR-001/004..013; ADR-013 = hexagonal
+    per-module, enforced by HexagonalArchitectureTests), boundary enforced by ModularityTests, Tier-A test
+    layers in the DoD. No money/PSP/external-egress/cross-service surface —
     the deliberately-safe first proof. One routine open item: SA sign-off on the new schema + public API.
   open_items:
     - SA review of the complaints schema + the public /api/complaints surface (routine, non-blocking)
@@ -19,8 +20,8 @@ authorises: build CMPL-010..020 against the SPEC. No prod promotion in this slic
 non_destruction: in force — no existing service/repo/DB touched; this is purely additive (a new module).
 
 stories:
-  - {id: CMPL-010, title: "Complaints module skeleton + owned schema + boundary guard", type: Story, points: 5, priority: P1, status: Ready}
-  - {id: CMPL-011, title: "Complaint aggregate + register + published ComplaintRegistered event", type: Story, points: 5, priority: P1, status: Ready}
+  - {id: CMPL-010, title: "Complaints module skeleton + owned schema + boundary guard", type: Story, points: 5, priority: P1, status: Done}
+  - {id: CMPL-011, title: "Complaint aggregate + register + published ComplaintRegistered event", type: Story, points: 5, priority: P1, status: Done}  # hexagonal (ADR-013); PR #30
   - {id: CMPL-012, title: "Lifecycle operations + state-machine guards + ack-due clock", type: Story, points: 5, priority: P1, status: Ready}
   - {id: CMPL-013, title: "Published API + REST + SSO security", type: Story, points: 3, priority: P1, status: Ready}
   - {id: CMPL-014, title: "Deploy to dev + the live QA gate", type: Story, points: 5, priority: P1, status: Ready}
