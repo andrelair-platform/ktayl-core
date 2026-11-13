@@ -40,12 +40,14 @@ class ComplaintPersistenceAdapter implements ComplaintRepository {
 
     private static ComplaintJpaEntity toEntity(Complaint c) {
         return new ComplaintJpaEntity(c.id(), c.channel().name(), c.subjectRef(), c.summary(),
-                c.status().name(), c.registeredAt(), c.idempotencyKey());
+                c.status().name(), c.registeredAt(), c.idempotencyKey(), c.acknowledgementDueAt(),
+                c.assignedTo(), c.resolutionNote());
     }
 
     private static Complaint toDomain(ComplaintJpaEntity e) {
         return Complaint.rehydrate(e.getId(), ComplaintChannel.valueOf(e.getChannel()), e.getSubjectRef(),
                 e.getSummary(), e.getRegisteredAt(), e.getIdempotencyKey(),
-                ComplaintStatus.valueOf(e.getStatus()));
+                ComplaintStatus.valueOf(e.getStatus()), e.getAcknowledgementDueAt(), e.getAssignedTo(),
+                e.getResolutionNote());
     }
 }

@@ -10,7 +10,7 @@
 | [billing.invoice](billing.invoice.md)                   | 6       |         | BASE TABLE |
 | [billing.schema_marker](billing.schema_marker.md)       | 2       |         | BASE TABLE |
 | [complaints.audit_log](complaints.audit_log.md)         | 7       |         | BASE TABLE |
-| [complaints.complaint](complaints.complaint.md)         | 7       |         | BASE TABLE |
+| [complaints.complaint](complaints.complaint.md)         | 10      |         | BASE TABLE |
 | [complaints.schema_marker](complaints.schema_marker.md) | 2       |         | BASE TABLE |
 
 ## Relations
@@ -73,10 +73,13 @@ erDiagram
   bigint id
 }
 "complaints.complaint" {
+  timestamp_with_time_zone acknowledgement_due_at
+  varchar_128_ assigned_to
   varchar_16_ channel
   uuid id
   varchar_128_ idempotency_key
   timestamp_with_time_zone registered_at
+  text resolution_note
   varchar_16_ status
   varchar_128_ subject_ref
   text summary

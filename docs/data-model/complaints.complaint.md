@@ -2,15 +2,18 @@
 
 ## Columns
 
-| Name            | Type                     | Default | Nullable | Children | Parents | Comment |
-| --------------- | ------------------------ | ------- | -------- | -------- | ------- | ------- |
-| channel         | varchar(16)              |         | false    |          |         |         |
-| id              | uuid                     |         | false    |          |         |         |
-| idempotency_key | varchar(128)             |         | true     |          |         |         |
-| registered_at   | timestamp with time zone |         | false    |          |         |         |
-| status          | varchar(16)              |         | false    |          |         |         |
-| subject_ref     | varchar(128)             |         | true     |          |         |         |
-| summary         | text                     |         | false    |          |         |         |
+| Name                   | Type                     | Default | Nullable | Children | Parents | Comment |
+| ---------------------- | ------------------------ | ------- | -------- | -------- | ------- | ------- |
+| acknowledgement_due_at | timestamp with time zone |         | true     |          |         |         |
+| assigned_to            | varchar(128)             |         | true     |          |         |         |
+| channel                | varchar(16)              |         | false    |          |         |         |
+| id                     | uuid                     |         | false    |          |         |         |
+| idempotency_key        | varchar(128)             |         | true     |          |         |         |
+| registered_at          | timestamp with time zone |         | false    |          |         |         |
+| resolution_note        | text                     |         | true     |          |         |         |
+| status                 | varchar(16)              |         | false    |          |         |         |
+| subject_ref            | varchar(128)             |         | true     |          |         |         |
+| summary                | text                     |         | false    |          |         |         |
 
 ## Constraints
 
@@ -32,10 +35,13 @@ erDiagram
 
 
 "complaints.complaint" {
+  timestamp_with_time_zone acknowledgement_due_at
+  varchar_128_ assigned_to
   varchar_16_ channel
   uuid id
   varchar_128_ idempotency_key
   timestamp_with_time_zone registered_at
+  text resolution_note
   varchar_16_ status
   varchar_128_ subject_ref
   text summary
