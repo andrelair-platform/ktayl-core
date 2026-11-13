@@ -21,8 +21,10 @@ Extract/keep-separate **only** when **one or more real forces** hold (size alone
 | **It is a separate product, not an IS domain** | **Retrieva** (the cert deliverable) |
 
 Rules:
-- **Size is not a force.** 100k lines of Claims code does **not** justify a Claims service; a Claims
-  workload that needs independent scaling/ownership might.
+- **Size is not a force — at either level.** A context growing to hundreds of sub-capabilities (the
+  two-level model, ADR-005) does **not** justify splitting the context or extracting a service; it grows
+  internally. 100k lines of Claims code does **not** justify a Claims service; a Claims workload that needs
+  independent scaling/ownership might.
 - **"Already works + reliable pipeline"** is a reason to **keep as-is**, not to migrate — migrating a
   healthy service for architectural tidiness is net-negative (ADR-004).
 - **Decision is recorded** (a one-line note per domain in the inventory, or an ADR for a boundary change)
