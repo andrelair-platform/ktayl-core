@@ -496,6 +496,16 @@
       "type": "BASE TABLE",
       "columns": [
         {
+          "name": "acknowledgement_due_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "assigned_to",
+          "type": "varchar(128)",
+          "nullable": true
+        },
+        {
           "name": "channel",
           "type": "varchar(16)",
           "nullable": false
@@ -514,6 +524,11 @@
           "name": "registered_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "resolution_note",
+          "type": "text",
+          "nullable": true
         },
         {
           "name": "status",
