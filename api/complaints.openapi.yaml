@@ -1,0 +1,177 @@
+openapi: 3.0.3
+info:
+  title: ktayl-core — Complaints API
+  version: "0.1.0"
+  description: >
+    Complaints & Disputes module (CMPL-013) of the ktayl-core modular monolith. Register and advance a
+    complaint through its lifecycle. All endpoints require an Authentik OIDC bearer token (401 without one)
+    AND membership of the `Complaints Handler` group (403 without it). The acting principal is taken from
+    the token for audit attribution. Per-module contract (Billing's is api/openapi.yaml). Hand-maintained to
+    match com.ktayl.core.complaints.infrastructure.web.ComplaintController + the published
+    api.ComplaintOperations / api.ComplaintSummary; verified by the L3 contract test.
+servers:
+  - url: https://ktayl-core.10.0.0.200.nip.io
+    description: dev (host finalised at deploy — CMPL-014)
+security:
+  - bearerAuth: []
+paths:
+  /api/complaints:
+    post:
+      summary: Register a complaint
+      operationId: registerComplaint
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string }
+          description: Safe-retry key — the same key returns the same complaint, no duplicate.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        "201":
+          description: Registered
+          headers:
+            Location: { schema: { type: string }, description: URI of the new complaint }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "422": { $ref: '#/components/responses/UnprocessableEntity' }
+  /api/complaints/{id}:
+    get:
+      summary: Get a complaint
+      operationId: getComplaint
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComplaintSummary' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+  /api/complaints/{id}/acknowledge:
+    post:
+      summary: Acknowledge (REGISTERED → ACKNOWLEDGED)
+      operationId: acknowledgeComplaint
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Done }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+        "409": { $ref: '#/components/responses/Conflict' }
+  /api/complaints/{id}/assign:
+    post:
+      summary: Assign to a handler (ACKNOWLEDGED → ASSIGNED)
+      operationId: assignComplaint
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssignRequest' }
+      responses:
+        "204": { description: Done }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+        "409": { $ref: '#/components/responses/Conflict' }
+        "422": { $ref: '#/components/responses/UnprocessableEntity' }
+  /api/complaints/{id}/resolve:
+    post:
+      summary: Record the resolution (ASSIGNED → RESOLVED)
+      operationId: resolveComplaint
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResolveRequest' }
+      responses:
+        "204": { description: Done }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+        "409": { $ref: '#/components/responses/Conflict' }
+        "422": { $ref: '#/components/responses/UnprocessableEntity' }
+  /api/complaints/{id}/close:
+    post:
+      summary: Close (RESOLVED → CLOSED)
+      operationId: closeComplaint
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Done }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+        "409": { $ref: '#/components/responses/Conflict' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [channel, summary]
+      properties:
+        channel: { type: string, enum: [PHONE, EMAIL, PORTAL, LETTER, BROKER] }
+        subjectRef: { type: string, nullable: true, description: party/policy by reference }
+        summary: { type: string }
+    AssignRequest:
+      type: object
+      required: [assignedTo]
+      properties:
+        assignedTo: { type: string }
+    ResolveRequest:
+      type: object
+      required: [resolutionNote]
+      properties:
+        resolutionNote: { type: string }
+    ComplaintSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        channel: { type: string }
+        subjectRef: { type: string, nullable: true }
+        summary: { type: string }
+        status: { type: string, enum: [REGISTERED, ACKNOWLEDGED, ASSIGNED, RESOLVED, CLOSED] }
+        registeredAt: { type: string, format: date-time }
+        acknowledgementDueAt: { type: string, format: date-time, nullable: true }
+        assignedTo: { type: string, nullable: true }
+        resolutionNote: { type: string, nullable: true }
+    ProblemDetail:
+      type: object
+      description: RFC-7807 problem detail
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+  responses:
+    Unauthorized: { description: No / invalid token }
+    Forbidden: { description: Authenticated but not in the Complaints Handler group }
+    NotFound:
+      description: No complaint with that id
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemDetail' } } }
+    Conflict:
+      description: Illegal lifecycle transition for the complaint's current state
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemDetail' } } }
+    UnprocessableEntity:
+      description: Invalid input (e.g. unknown channel, blank required field)
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemDetail' } } }
