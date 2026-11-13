@@ -19,12 +19,12 @@ authorises: build CMPL-010..020 against the SPEC. No prod promotion in this slic
 non_destruction: in force — no existing service/repo/DB touched; this is purely additive (a new module).
 
 stories:
-  - {id: CMPL-010, title: "Complaints module skeleton + owned schema + boundary guard", type: Story, points: 3, priority: P1, status: Ready}
+  - {id: CMPL-010, title: "Complaints module skeleton + owned schema + boundary guard", type: Story, points: 5, priority: P1, status: Ready}
   - {id: CMPL-011, title: "Complaint aggregate + register + published ComplaintRegistered event", type: Story, points: 5, priority: P1, status: Ready}
-  - {id: CMPL-012, title: "Lifecycle operations + state-machine guards + statutory deadline", type: Story, points: 5, priority: P1, status: Ready}
+  - {id: CMPL-012, title: "Lifecycle operations + state-machine guards + ack-due clock", type: Story, points: 5, priority: P1, status: Ready}
   - {id: CMPL-013, title: "Published API + REST + SSO security", type: Story, points: 3, priority: P1, status: Ready}
   - {id: CMPL-014, title: "Deploy to dev + the live QA gate", type: Story, points: 5, priority: P1, status: Ready}
   - {id: CMPL-020, title: "As-built doc + ERD + org-site pointer", type: Story, points: 2, priority: P2, status: Ready}
 
 sequence: [CMPL-010, CMPL-011, CMPL-012, CMPL-013, CMPL-014, CMPL-020]
-total_points: 23
+total_points: 25
