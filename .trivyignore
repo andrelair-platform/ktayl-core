@@ -1,0 +1,18 @@
+# ───────────────────────────────────────────────────────────────────────────────────────────────────
+# Trivy CRITICAL-gate suppressions — ACCEPTED RISK with justification + revisit trigger (2026-11-13).
+# Each entry is a VEX-style "not affected" determination for ktayl-core's ACTUAL usage — NOT a blanket
+# mute. Re-evaluate on every Spring bump; DELETE an entry the moment a usable fix lands. A change to this
+# file re-triggers the image build + rescan (it is in the CI paths filter), so the gate re-evaluates.
+#
+# CVE-2026-47884 (CRITICAL) — spring-webmvc 6.2.19: RCE via improper path limitation in XsltView.
+# CVE-2026-47890 (CRITICAL) — spring-webmvc 6.2.19: stream corruption in SSE with view rendering.
+#   Fix: Spring Framework 7.0.9 ONLY (= Spring Boot 4.x); confirmed via OSV — NO 6.2.x backport exists
+#   (the OSS line does not receive these), so the "bump the pin" remedy is unavailable under Boot 3.5.
+#   NOT REACHABLE in ktayl-core: this is a JSON @RestController API — no XSLT / XsltView, no server-side
+#   view resolver, no SSE endpoints → neither attack surface is present (Jackson is the only view path).
+#   Compensating controls: every /api route is behind Authentik OIDC (resource-server); no view layer.
+#   REVISIT TRIGGER: remove BOTH lines when (a) a fixed Spring Framework 6.2.x ships, OR (b) ktayl-core
+#   adopts Spring Boot 4 (7.0.9 lands with it). Hard-review by 2026-12-31 regardless of the above.
+# ───────────────────────────────────────────────────────────────────────────────────────────────────
+CVE-2026-47884
+CVE-2026-47890
