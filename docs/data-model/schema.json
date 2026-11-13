@@ -420,6 +420,149 @@
       ]
     },
     {
+      "name": "complaints.audit_log",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "action",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "actor",
+          "type": "varchar(128)",
+          "nullable": false
+        },
+        {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "detail",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "entity",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "audit_log_pkey",
+          "def": "CREATE UNIQUE INDEX audit_log_pkey ON complaints.audit_log USING btree (id)",
+          "table": "complaints.audit_log",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "ix_complaint_audit_entity",
+          "def": "CREATE INDEX ix_complaint_audit_entity ON complaints.audit_log USING btree (entity, entity_id)",
+          "table": "complaints.audit_log",
+          "columns": [
+            "entity",
+            "entity_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "audit_log_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "complaints.audit_log",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "complaints.complaint",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "channel",
+          "type": "varchar(16)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "idempotency_key",
+          "type": "varchar(128)",
+          "nullable": true
+        },
+        {
+          "name": "registered_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "varchar(16)",
+          "nullable": false
+        },
+        {
+          "name": "subject_ref",
+          "type": "varchar(128)",
+          "nullable": true
+        },
+        {
+          "name": "summary",
+          "type": "text",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "complaint_pkey",
+          "def": "CREATE UNIQUE INDEX complaint_pkey ON complaints.complaint USING btree (id)",
+          "table": "complaints.complaint",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "ux_complaint_idempotency_key",
+          "def": "CREATE UNIQUE INDEX ux_complaint_idempotency_key ON complaints.complaint USING btree (idempotency_key) WHERE (idempotency_key IS NOT NULL)",
+          "table": "complaints.complaint",
+          "columns": [
+            "idempotency_key"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "complaint_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "complaints.complaint",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
       "name": "complaints.schema_marker",
       "type": "BASE TABLE",
       "columns": [

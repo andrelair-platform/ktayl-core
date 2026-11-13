@@ -122,6 +122,14 @@
             <artifactId>spring-modulith-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- ArchUnit on the TEST-COMPILE classpath (Modulith brings it only at runtime scope) so the
+             hexagonal purity guard (ADR-013) can be authored as a test. -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>1.4.2</version>
+            <scope>test</scope>
+        </dependency>
 
         <!-- L2 integration: real Postgres + Flyway via Testcontainers (versions from the Boot BOM) -->
         <dependency>

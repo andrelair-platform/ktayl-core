@@ -9,6 +9,8 @@
 | [billing.installment](billing.installment.md)           | 7       |         | BASE TABLE |
 | [billing.invoice](billing.invoice.md)                   | 6       |         | BASE TABLE |
 | [billing.schema_marker](billing.schema_marker.md)       | 2       |         | BASE TABLE |
+| [complaints.audit_log](complaints.audit_log.md)         | 7       |         | BASE TABLE |
+| [complaints.complaint](complaints.complaint.md)         | 7       |         | BASE TABLE |
 | [complaints.schema_marker](complaints.schema_marker.md) | 2       |         | BASE TABLE |
 
 ## Relations
@@ -60,6 +62,24 @@ erDiagram
 "billing.schema_marker" {
   timestamp_with_time_zone initialized
   varchar_64_ module
+}
+"complaints.audit_log" {
+  varchar_64_ action
+  varchar_128_ actor
+  timestamp_with_time_zone at
+  text detail
+  varchar_64_ entity
+  varchar_64_ entity_id
+  bigint id
+}
+"complaints.complaint" {
+  varchar_16_ channel
+  uuid id
+  varchar_128_ idempotency_key
+  timestamp_with_time_zone registered_at
+  varchar_16_ status
+  varchar_128_ subject_ref
+  text summary
 }
 "complaints.schema_marker" {
   timestamp_with_time_zone initialized
