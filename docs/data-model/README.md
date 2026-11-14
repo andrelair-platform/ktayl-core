@@ -8,6 +8,7 @@
 | [billing.ingested_policy](billing.ingested_policy.md)   | 10      |         | BASE TABLE |
 | [billing.installment](billing.installment.md)           | 7       |         | BASE TABLE |
 | [billing.invoice](billing.invoice.md)                   | 6       |         | BASE TABLE |
+| [billing.ledger_outbox](billing.ledger_outbox.md)       | 11      |         | BASE TABLE |
 | [billing.payment](billing.payment.md)                   | 9       |         | BASE TABLE |
 | [billing.schema_marker](billing.schema_marker.md)       | 2       |         | BASE TABLE |
 | [billing.webhook_event](billing.webhook_event.md)       | 4       |         | BASE TABLE |
@@ -61,6 +62,19 @@ erDiagram
   varchar_64_ policy_number FK
   varchar_16_ status
   bigint total_minor
+}
+"billing.ledger_outbox" {
+  bigint amount_minor
+  integer attempts
+  timestamp_with_time_zone created_at
+  varchar_3_ currency
+  varchar_32_ event_type
+  uuid id
+  varchar_500_ last_error
+  timestamp_with_time_zone posted_at
+  varchar_140_ posted_ref
+  varchar_80_ reference
+  varchar_16_ status
 }
 "billing.payment" {
   bigint amount_minor
