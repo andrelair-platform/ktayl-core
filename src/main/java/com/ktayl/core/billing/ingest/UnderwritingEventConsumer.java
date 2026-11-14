@@ -11,14 +11,14 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
  * Durable JetStream consumer of the Underwriting bound-risk event (BILL-011, ADR-003). Active only when
- * a NATS {@link Connection} bean exists (prod = authoritative; dev blank → disabled). Self-provisions its
+ * {@code billing.nats.url} is set (prod = authoritative; dev blank → disabled). Self-provisions its
  * durable consumer on the {@code UNDERWRITING_EVENTS} stream (created in gitops) and hands each message to
  * {@link PolicyIngestService}:
  * <ul>
@@ -26,9 +26,18 @@ import org.springframework.stereotype.Component;
  *   <li><b>term</b> a poison message (malformed / invalid — never redeliver it endlessly),</li>
  *   <li><b>nak</b> a transient failure (e.g. DB blip) → redelivered.</li>
  * </ul>
+ *
+ * <p>Gating note: this uses the SAME deterministic property condition as {@link
+ * com.ktayl.core.shared.config.NatsConfig} ({@code billing.nats.url != ''}), NOT {@code
+ * @ConditionalOnBean(Connection.class)}. {@code @ConditionalOnBean} is order-dependent — it only sees
+ * bean definitions already processed when the condition is evaluated, so on a user {@code @Component} it
+ * can lose the race against the {@code Connection} {@code @Bean} and be silently dropped (observed in
+ * prod 2026-11-14: the app connected to NATS but this consumer never started, so no durable consumer was
+ * created and bound-risk events sat unconsumed). The property condition is evaluated purely on config and
+ * matches {@code NatsConfig} exactly, so the Connection bean is always present when this is created.
  */
 @Component
-@ConditionalOnBean(Connection.class)
+@ConditionalOnExpression("'${billing.nats.url:}' != ''")
 public class UnderwritingEventConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(UnderwritingEventConsumer.class);
