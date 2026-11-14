@@ -70,6 +70,23 @@ billing:
     secret-key: ${BILLING_STRIPE_SECRET_KEY:}
     webhook-secret: ${BILLING_STRIPE_WEBHOOK_SECRET:}
 
+# GL posting to ERPNext (ADR-002, BILL-014 — transactional outbox). BLANK api-key by default → no ledger
+# client bean, so the outbox accumulates and the drainer no-ops until ERPNext creds are set (ESO→Vault
+# secret/platform/erpnext: LEDGER_ERPNEXT_API_KEY, LEDGER_ERPNEXT_API_SECRET). Account names + company map
+# to the ERPNext chart of accounts via config, so no code change to align them.
+ledger:
+  drain-interval-ms: ${LEDGER_DRAIN_INTERVAL_MS:30000}
+  drain-initial-ms: ${LEDGER_DRAIN_INITIAL_MS:20000}
+  erpnext:
+    base-url: ${LEDGER_ERPNEXT_BASE_URL:http://erpnext.erp.svc:8080}
+    api-key: ${LEDGER_ERPNEXT_API_KEY:}
+    api-secret: ${LEDGER_ERPNEXT_API_SECRET:}
+    company: ${LEDGER_ERPNEXT_COMPANY:ktayl-solution}
+    accounts:
+      premium-receivable: ${LEDGER_ACC_PREMIUM_RECEIVABLE:Premium Receivable}
+      premium-income: ${LEDGER_ACC_PREMIUM_INCOME:Premium Income}
+      cash: ${LEDGER_ACC_CASH:Cash}
+
 # Complaints (CMPL-012): the acknowledgement-due PLACEHOLDER window (next-action SLA marker — deliberately
 # NOT the ACPR/EIOPA/IDD statutory deadline). ISO-8601 duration; acknowledge() sets due = now + this.
 complaints:
