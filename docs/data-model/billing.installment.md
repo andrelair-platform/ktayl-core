@@ -2,15 +2,15 @@
 
 ## Columns
 
-| Name         | Type                     | Default                   | Nullable | Children                              | Parents                               | Comment |
-| ------------ | ------------------------ | ------------------------- | -------- | ------------------------------------- | ------------------------------------- | ------- |
-| amount_minor | bigint                   |                           | false    |                                       |                                       |         |
-| due_date     | date                     |                           | false    |                                       |                                       |         |
-| id           | uuid                     |                           | false    | [billing.payment](billing.payment.md) |                                       |         |
-| invoice_id   | uuid                     |                           | false    |                                       | [billing.invoice](billing.invoice.md) |         |
-| paid_at      | timestamp with time zone |                           | true     |                                       |                                       |         |
-| seq          | integer                  |                           | false    |                                       |                                       |         |
-| status       | varchar(16)              | 'open'::character varying | false    |                                       |                                       |         |
+| Name         | Type                     | Default                   | Nullable | Children                                                                              | Parents                               | Comment |
+| ------------ | ------------------------ | ------------------------- | -------- | ------------------------------------------------------------------------------------- | ------------------------------------- | ------- |
+| amount_minor | bigint                   |                           | false    |                                                                                       |                                       |         |
+| due_date     | date                     |                           | false    |                                                                                       |                                       |         |
+| id           | uuid                     |                           | false    | [billing.dunning_case](billing.dunning_case.md) [billing.payment](billing.payment.md) |                                       |         |
+| invoice_id   | uuid                     |                           | false    |                                                                                       | [billing.invoice](billing.invoice.md) |         |
+| paid_at      | timestamp with time zone |                           | true     |                                                                                       |                                       |         |
+| seq          | integer                  |                           | false    |                                                                                       |                                       |         |
+| status       | varchar(16)              | 'open'::character varying | false    |                                                                                       |                                       |         |
 
 ## Constraints
 
@@ -34,6 +34,7 @@
 ```mermaid
 erDiagram
 
+"billing.dunning_case" |o--|| "billing.installment" : "FOREIGN KEY (installment_id) REFERENCES installment(id)"
 "billing.payment" }o--|| "billing.installment" : "FOREIGN KEY (installment_id) REFERENCES installment(id)"
 "billing.installment" }o--|| "billing.invoice" : "FOREIGN KEY (invoice_id) REFERENCES invoice(id)"
 
@@ -45,6 +46,16 @@ erDiagram
   timestamp_with_time_zone paid_at
   integer seq
   varchar_16_ status
+}
+"billing.dunning_case" {
+  integer attempts
+  timestamp_with_time_zone created_at
+  uuid id
+  uuid installment_id FK
+  varchar_300_ last_reason
+  varchar_64_ policy_number
+  varchar_20_ status
+  timestamp_with_time_zone updated_at
 }
 "billing.payment" {
   bigint amount_minor

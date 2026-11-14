@@ -69,6 +69,10 @@ billing:
   stripe:
     secret-key: ${BILLING_STRIPE_SECRET_KEY:}
     webhook-secret: ${BILLING_STRIPE_WEBHOOK_SECRET:}
+  # Dunning (BILL-013c): after this many failed collection attempts the dunning case becomes lapse_pending
+  # and a PolicyLapseRecommended event is raised (a recommendation for human review, not an auto-lapse).
+  dunning:
+    lapse-threshold: ${BILLING_DUNNING_LAPSE_THRESHOLD:3}
 
 # GL posting to ERPNext (ADR-002, BILL-014 — transactional outbox). BLANK api-key by default → no ledger
 # client bean, so the outbox accumulates and the drainer no-ops until ERPNext creds are set (ESO→Vault

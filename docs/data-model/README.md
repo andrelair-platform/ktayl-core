@@ -5,6 +5,7 @@
 | Name                                                    | Columns | Comment | Type       |
 | ------------------------------------------------------- | ------- | ------- | ---------- |
 | [billing.audit_log](billing.audit_log.md)               | 7       |         | BASE TABLE |
+| [billing.dunning_case](billing.dunning_case.md)         | 8       |         | BASE TABLE |
 | [billing.ingested_policy](billing.ingested_policy.md)   | 10      |         | BASE TABLE |
 | [billing.installment](billing.installment.md)           | 7       |         | BASE TABLE |
 | [billing.invoice](billing.invoice.md)                   | 6       |         | BASE TABLE |
@@ -21,6 +22,7 @@
 ```mermaid
 erDiagram
 
+"billing.dunning_case" |o--|| "billing.installment" : "FOREIGN KEY (installment_id) REFERENCES installment(id)"
 "billing.installment" }o--|| "billing.invoice" : "FOREIGN KEY (invoice_id) REFERENCES invoice(id)"
 "billing.invoice" |o--|| "billing.ingested_policy" : "FOREIGN KEY (policy_number) REFERENCES ingested_policy(policy_number)"
 "billing.payment" }o--|| "billing.installment" : "FOREIGN KEY (installment_id) REFERENCES installment(id)"
@@ -33,6 +35,16 @@ erDiagram
   varchar_64_ entity
   varchar_128_ entity_id
   bigint id
+}
+"billing.dunning_case" {
+  integer attempts
+  timestamp_with_time_zone created_at
+  uuid id
+  uuid installment_id FK
+  varchar_300_ last_reason
+  varchar_64_ policy_number
+  varchar_20_ status
+  timestamp_with_time_zone updated_at
 }
 "billing.ingested_policy" {
   varchar_3_ currency
