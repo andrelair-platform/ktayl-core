@@ -381,6 +381,130 @@
       ]
     },
     {
+      "name": "billing.ledger_outbox",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "amount_minor",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "attempts",
+          "type": "integer",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "currency",
+          "type": "varchar(3)",
+          "nullable": false
+        },
+        {
+          "name": "event_type",
+          "type": "varchar(32)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "last_error",
+          "type": "varchar(500)",
+          "nullable": true
+        },
+        {
+          "name": "posted_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "posted_ref",
+          "type": "varchar(140)",
+          "nullable": true
+        },
+        {
+          "name": "reference",
+          "type": "varchar(80)",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "varchar(16)",
+          "nullable": false,
+          "default": "'pending'::character varying"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_ledger_outbox_pending",
+          "def": "CREATE INDEX idx_ledger_outbox_pending ON billing.ledger_outbox USING btree (status) WHERE ((status)::text = 'pending'::text)",
+          "table": "billing.ledger_outbox",
+          "columns": [
+            "status"
+          ]
+        },
+        {
+          "name": "ledger_outbox_event_type_reference_key",
+          "def": "CREATE UNIQUE INDEX ledger_outbox_event_type_reference_key ON billing.ledger_outbox USING btree (event_type, reference)",
+          "table": "billing.ledger_outbox",
+          "columns": [
+            "event_type",
+            "reference"
+          ]
+        },
+        {
+          "name": "ledger_outbox_pkey",
+          "def": "CREATE UNIQUE INDEX ledger_outbox_pkey ON billing.ledger_outbox USING btree (id)",
+          "table": "billing.ledger_outbox",
+          "columns": [
+            "id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "ledger_outbox_amount_minor_check",
+          "type": "CHECK",
+          "def": "CHECK ((amount_minor \u003e 0))",
+          "table": "billing.ledger_outbox",
+          "referenced_table": "",
+          "columns": [
+            "amount_minor"
+          ]
+        },
+        {
+          "name": "ledger_outbox_event_type_reference_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (event_type, reference)",
+          "table": "billing.ledger_outbox",
+          "referenced_table": "",
+          "columns": [
+            "event_type",
+            "reference"
+          ]
+        },
+        {
+          "name": "ledger_outbox_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "billing.ledger_outbox",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
       "name": "billing.payment",
       "type": "BASE TABLE",
       "columns": [
