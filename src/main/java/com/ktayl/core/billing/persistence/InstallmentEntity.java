@@ -45,6 +45,16 @@ public class InstallmentEntity {
         this.status = status;
     }
 
+    /** Mark this installment paid (on the verified payment webhook, BILL-013b): open → paid. */
+    public void markPaid(Instant at) {
+        this.status = "paid";
+        this.paidAt = at;
+    }
+
+    public boolean isPaid() {
+        return "paid".equals(status);
+    }
+
     public UUID getId() { return id; }
     public UUID getInvoiceId() { return invoiceId; }
     public int getSeq() { return seq; }

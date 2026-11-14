@@ -106,6 +106,13 @@
             <version>2.26.4</version>
         </dependency>
 
+        <!-- Stripe PSP — SEPA Direct Debit PaymentIntent + webhook signature verification (ADR-002, BILL-013) -->
+        <dependency>
+            <groupId>com.stripe</groupId>
+            <artifactId>stripe-java</artifactId>
+            <version>29.0.0</version>
+        </dependency>
+
         <!-- test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

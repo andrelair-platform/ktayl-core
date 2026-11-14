@@ -41,6 +41,11 @@ public class InvoiceEntity {
         this.issuedAt = issuedAt;
     }
 
+    /** Settle the invoice once every installment is paid (BILL-013b): issued → settled. */
+    public void settle() {
+        this.status = "settled";
+    }
+
     public UUID getId() { return id; }
     public String getPolicyNumber() { return policyNumber; }
     public String getCurrency() { return currency; }

@@ -63,6 +63,12 @@ billing:
     stream: ${BILLING_NATS_STREAM:UNDERWRITING_EVENTS}
     subject: ${BILLING_NATS_SUBJECT:insurance.underwriting.bound-risk}
     durable: ${BILLING_NATS_DURABLE:billing-ingest}
+  # Stripe PSP (ADR-002, test mode, SEPA Direct Debit). BLANK by default → no gateway bean, so payment
+  # initiation returns 503 and the webhook returns 503 until the signing secret is set. Keys come from
+  # ESO→Vault (secret/platform/ktayl-core*): BILLING_STRIPE_SECRET_KEY, BILLING_STRIPE_WEBHOOK_SECRET.
+  stripe:
+    secret-key: ${BILLING_STRIPE_SECRET_KEY:}
+    webhook-secret: ${BILLING_STRIPE_WEBHOOK_SECRET:}
 
 # Complaints (CMPL-012): the acknowledgement-due PLACEHOLDER window (next-action SLA marker — deliberately
 # NOT the ACPR/EIOPA/IDD statutory deadline). ISO-8601 duration; acknowledge() sets due = now + this.
