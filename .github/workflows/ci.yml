@@ -193,7 +193,9 @@ jobs:
               insecure = true
 
       # ktayl-core does NOT bake the minicloud CA: it calls PAS/ERPNext over in-cluster HTTP and
-      # Stripe over public TLS (standard CA in the JRE truststore). So no CA build-arg/secret here.
+      # The OIDC issuer (auth.devandre.sbs) resolves internally (split-horizon) to the minicloud-CA
+      # ingress, so the JVM must trust the minicloud CA to fetch the Authentik JWKS → inject it as a
+      # build-arg (imported into the image's JVM truststore in the Dockerfile). Stripe/ghcr stay public.
       - name: Build and push
         id: build
         uses: docker/build-push-action@v7
@@ -202,6 +204,8 @@ jobs:
           file: ./Dockerfile
           push: true
           platforms: linux/amd64
+          build-args: |
+            CA_CERT=${{ secrets.MINICLOUD_CA_CERT }}
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
