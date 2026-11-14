@@ -40,16 +40,18 @@ public class PaymentCaptureService {
     private final InvoiceRepository invoices;
     private final AuditRepository audit;
     private final WebhookEventRepository webhookEvents;
+    private final com.ktayl.core.billing.persistence.DunningCaseRepository dunning;
     private final ApplicationEventPublisher events;
 
     public PaymentCaptureService(PaymentRepository payments, InstallmentRepository installments,
             InvoiceRepository invoices, AuditRepository audit, WebhookEventRepository webhookEvents,
-            ApplicationEventPublisher events) {
+            com.ktayl.core.billing.persistence.DunningCaseRepository dunning, ApplicationEventPublisher events) {
         this.payments = payments;
         this.installments = installments;
         this.invoices = invoices;
         this.audit = audit;
         this.webhookEvents = webhookEvents;
+        this.dunning = dunning;
         this.events = events;
     }
 
@@ -81,6 +83,11 @@ public class PaymentCaptureService {
         payment.markSucceeded(now);
         InstallmentEntity installment = installments.findById(payment.getInstallmentId()).orElseThrow();
         installment.markPaid(now);
+
+        // a retry finally succeeded → close any open dunning case for this installment (BILL-013c)
+        dunning.findByInstallmentId(installment.getId())
+                .filter(d -> !"resolved".equals(d.getStatus()))
+                .ifPresent(d -> d.resolve(now));
 
         // settle the invoice once EVERY installment is paid
         InvoiceEntity invoice = invoices.findById(installment.getInvoiceId()).orElseThrow();

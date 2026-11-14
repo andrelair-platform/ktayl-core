@@ -38,8 +38,14 @@ class StripeWebhookControllerTest {
             {"id":"evt_test_1","object":"event","type":"payment_intent.succeeded",
              "data":{"object":{"id":"pi_test_1","object":"payment_intent"}}}""";
 
+    private static final String FAILED_PAYLOAD = """
+            {"id":"evt_fail_1","object":"event","type":"payment_intent.payment_failed",
+             "data":{"object":{"id":"pi_fail_1","object":"payment_intent",
+             "last_payment_error":{"message":"insufficient_funds"}}}}""";
+
     @Autowired MockMvc mvc;
     @MockitoBean PaymentCaptureService capture;
+    @MockitoBean PaymentFailureService failures;
     @MockitoBean JwtDecoder jwtDecoder;
 
     private static String signature(String payload, String secret, long t) throws Exception {
@@ -58,6 +64,18 @@ class StripeWebhookControllerTest {
                 .andExpect(status().isOk());
 
         verify(capture).capturePaymentSucceeded(eq("evt_test_1"), eq("payment_intent.succeeded"), eq("pi_test_1"));
+    }
+
+    @Test
+    void accepts_a_signature_valid_payment_failed_event_and_dunns_it() throws Exception {
+        String sig = signature(FAILED_PAYLOAD, SECRET, Instant.now().getEpochSecond());
+
+        mvc.perform(post("/webhooks/stripe").header("Stripe-Signature", sig)
+                        .contentType(MediaType.APPLICATION_JSON).content(FAILED_PAYLOAD))
+                .andExpect(status().isOk());
+
+        verify(failures).handlePaymentFailed(eq("evt_fail_1"), eq("payment_intent.payment_failed"),
+                eq("pi_fail_1"), eq("insufficient_funds"));
     }
 
     @Test

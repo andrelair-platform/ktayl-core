@@ -62,6 +62,11 @@ public class PaymentEntity {
         this.capturedAt = at;
     }
 
+    /** The debit failed (payment_intent.payment_failed): pending → failed. The installment stays open. */
+    public void markFailed() {
+        this.status = "failed";
+    }
+
     public UUID getId() { return id; }
     public UUID getInstallmentId() { return installmentId; }
     public String getClientKey() { return clientKey; }

@@ -30,15 +30,18 @@ public class StripeWebhookController {
 
     private static final Logger log = LoggerFactory.getLogger(StripeWebhookController.class);
     private static final String PAYMENT_SUCCEEDED = "payment_intent.succeeded";
+    private static final String PAYMENT_FAILED = "payment_intent.payment_failed";
 
     private final String webhookSecret;
     private final PaymentCaptureService capture;
+    private final PaymentFailureService failures;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public StripeWebhookController(@Value("${billing.stripe.webhook-secret:}") String webhookSecret,
-            PaymentCaptureService capture) {
+            PaymentCaptureService capture, PaymentFailureService failures) {
         this.webhookSecret = webhookSecret;
         this.capture = capture;
+        this.failures = failures;
     }
 
     @PostMapping("/webhooks/stripe")
@@ -64,11 +67,14 @@ public class StripeWebhookController {
                     .body(Map.of("status", 400, "detail", "invalid signature"));
         }
 
-        if (!PAYMENT_SUCCEEDED.equals(event.getType())) {
-            return ResponseEntity.ok(Map.of("status", 200, "ignored", event.getType()));
+        String type = event.getType();
+        if (PAYMENT_SUCCEEDED.equals(type)) {
+            capture.capturePaymentSucceeded(event.getId(), type, intentIdOf(payload));
+        } else if (PAYMENT_FAILED.equals(type)) {
+            failures.handlePaymentFailed(event.getId(), type, intentIdOf(payload), failureReasonOf(payload));
+        } else {
+            return ResponseEntity.ok(Map.of("status", 200, "ignored", type));
         }
-        String intentId = intentIdOf(payload);
-        capture.capturePaymentSucceeded(event.getId(), event.getType(), intentId);
         return ResponseEntity.ok(Map.of("status", 200, "event", event.getId()));
     }
 
@@ -78,6 +84,17 @@ public class StripeWebhookController {
             return mapper.readTree(payload).path("data").path("object").path("id").asText();
         } catch (Exception e) {
             throw new IllegalArgumentException("malformed Stripe event payload", e);
+        }
+    }
+
+    /** The failure reason for a payment_failed event: {@code data.object.last_payment_error.message} (nullable). */
+    private String failureReasonOf(String payload) {
+        try {
+            String msg = mapper.readTree(payload).path("data").path("object")
+                    .path("last_payment_error").path("message").asText(null);
+            return (msg == null || msg.isBlank()) ? null : msg;
+        } catch (Exception e) {
+            return null;
         }
     }
 }
