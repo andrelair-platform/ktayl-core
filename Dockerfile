@@ -15,9 +15,11 @@ FROM eclipse-temurin:21-jre-jammy AS runtime
 # via split-horizon DNS to the INTERNAL ingress (10.0.0.200), which serves a minicloud-CA cert — the
 # resource-server's lazy JWKS fetch TLS-fails without this, so every bearer token 401s. CA injected at
 # build via the CA_CERT build-arg (secrets.MINICLOUD_CA_CERT); imported BEFORE dropping to non-root.
-ARG CA_CERT=""
-RUN if [ -n "$CA_CERT" ]; then \
-      printf '%s\n' "$CA_CERT" > /usr/local/share/ca-certificates/minicloud-ca.crt && \
+# base64 (single-line) build-arg: a multi-line PEM build-arg is split per newline by buildx into bogus
+# args, so the CA arrives b64-encoded and is decoded here. [[feedback_ca_in_ci_image_gotcha_chain]]
+ARG CA_CERT_B64=""
+RUN if [ -n "$CA_CERT_B64" ]; then \
+      echo "$CA_CERT_B64" | base64 -d > /usr/local/share/ca-certificates/minicloud-ca.crt && \
       update-ca-certificates && \
       keytool -importcert -noprompt -trustcacerts -alias minicloud-ca \
         -file /usr/local/share/ca-certificates/minicloud-ca.crt -cacerts -storepass changeit ; \
