@@ -83,23 +83,29 @@ class PolicyApiContractTest {
     }
 
     @Test
-    void resolve_by_policy_number_returns_the_view() throws Exception {
+    void resolve_by_policy_number_returns_the_pas_list_envelope() throws Exception {
+        // the PAS contract (carried forward verbatim): GET is a LIST → {"items":[…]}, never a single object
         when(policies.findByPolicyNumber("POL-1")).thenReturn(Optional.of(policy(PolicyStatus.ACTIVE)));
         mvc.perform(get("/v1/policies").param("policy_number", "POL-1").with(svc()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("ACTIVE"));
+                .andExpect(jsonPath("$.items[0].policy_number").value("POL-1"))
+                .andExpect(jsonPath("$.items[0].status").value("ACTIVE"));
     }
 
     @Test
-    void resolve_of_an_unknown_number_is_404() throws Exception {
+    void resolve_of_an_unknown_number_is_200_with_an_empty_list() throws Exception {
+        // NOT a 404 — underwriting's 409-resolve treats a non-200 as unresolvable; it needs an empty page
         when(policies.findByPolicyNumber("POL-X")).thenReturn(Optional.empty());
         mvc.perform(get("/v1/policies").param("policy_number", "POL-X").with(svc()))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty());
     }
 
     @Test
-    void a_missing_policy_number_query_param_is_400() throws Exception {
-        mvc.perform(get("/v1/policies").with(svc())).andExpect(status().isBadRequest());
+    void list_without_a_filter_is_200_with_an_empty_page_in_phase_1() throws Exception {
+        mvc.perform(get("/v1/policies").with(svc()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty());
     }
 
     @Test

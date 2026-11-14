@@ -30,8 +30,12 @@ design must live on **here** — this ADR is that record.
 3. **Schema-per-module** (ADR-006): the module OWNS the `policy` Postgres schema (`policy.policy`,
    `policy.policy_audit_log`); it never reads another module's tables.
 4. **The REST contract is carried forward verbatim** so underwriting repoints with a **base-URL change only**
-   (ADR-014 Phase 3): `POST /v1/policies` (201; 409 if exists), `GET /v1/policies?policy_number=` (resolve),
-   `GET /v1/policies/{id}`, `POST /{id}/submit|activate|cancel`.
+   (ADR-014 Phase 3): `POST /v1/policies` (201; 409 if exists), `GET /v1/policies?policy_number=` (the PAS
+   **list** endpoint — always `200` with a `{"items":[…],"next_cursor":…}` envelope, **never a single object
+   or 404**; underwriting's 409-resolve filters this client-side), `GET /v1/policies/{id}` (single object,
+   404-on-missing), `POST /{id}/submit|activate|cancel`. *(A Phase-1 fix: the first cut of `GET` returned a
+   single object / 404, which broke the 409-resolve idempotency path — corrected to the list envelope by
+   reading the real Go handler before repointing the consumer.)*
 5. **Published in-process read API** (ADR-005): `policy.api.PolicyQuery` (a `@NamedInterface`) lets other
    modules (billing, claims) read policy data in-process — the **shared-kernel value** of the fold (no
    cross-service HTTP). The internal aggregate/JPA entity never leaks.

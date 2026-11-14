@@ -3,7 +3,6 @@ package com.ktayl.core.policy.infrastructure.web;
 import com.ktayl.core.policy.application.CreatePolicyCommand;
 import com.ktayl.core.policy.application.PolicyService;
 import com.ktayl.core.policy.domain.Policy;
-import com.ktayl.core.policy.domain.PolicyNotFoundException;
 import java.time.LocalDate;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -36,6 +35,9 @@ public class PolicyController {
     public record PolicyResponse(UUID id, String policy_number, String holder_name, String product_code,
             String status, LocalDate effective_date, LocalDate expiry_date) {}
 
+    /** The PAS list envelope, carried forward verbatim: {@code {"items":[…],"next_cursor":…}}. */
+    public record ListPoliciesResponse(java.util.List<PolicyResponse> items, String next_cursor) {}
+
     private final PolicyService policies;
 
     public PolicyController(PolicyService policies) {
@@ -50,14 +52,19 @@ public class PolicyController {
         return ResponseEntity.status(HttpStatus.CREATED).body(view(p));
     }
 
-    /** Resolve by policy_number (the idempotency lookup) or list (Phase 1b). */
+    /**
+     * List policies — the PAS contract carried forward verbatim: always {@code 200} with a
+     * {@code {"items":[…]}} envelope (NOT a single object / 404). Underwriting's 409-resolve reads this and
+     * filters client-side by policy_number, so repointing it at ktayl-core needs a base-URL change only.
+     * Phase 1 supports the {@code policy_number} filter (the only thing the bind consumer uses); full
+     * cursor/status pagination (BF-POL-04) is Phase 1b — hence an empty page when no filter is given.
+     */
     @GetMapping
-    public ResponseEntity<PolicyResponse> byNumber(@RequestParam(name = "policy_number", required = false) String policyNumber) {
-        if (policyNumber == null || policyNumber.isBlank()) {
-            throw new IllegalArgumentException("policy_number query parameter is required");
-        }
-        return policies.findByPolicyNumber(policyNumber).map(p -> ResponseEntity.ok(view(p)))
-                .orElseThrow(() -> new PolicyNotFoundException("no policy with policy_number " + policyNumber));
+    public ListPoliciesResponse list(@RequestParam(name = "policy_number", required = false) String policyNumber) {
+        java.util.List<PolicyResponse> items = (policyNumber == null || policyNumber.isBlank())
+                ? java.util.List.of() // full listing is Phase 1b; the bind path only ever filters by number
+                : policies.findByPolicyNumber(policyNumber).map(p -> java.util.List.of(view(p))).orElseGet(java.util.List::of);
+        return new ListPoliciesResponse(items, null);
     }
 
     @GetMapping("/{id}")
