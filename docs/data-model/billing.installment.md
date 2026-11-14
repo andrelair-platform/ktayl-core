@@ -2,15 +2,15 @@
 
 ## Columns
 
-| Name         | Type                     | Default                   | Nullable | Children | Parents                               | Comment |
-| ------------ | ------------------------ | ------------------------- | -------- | -------- | ------------------------------------- | ------- |
-| amount_minor | bigint                   |                           | false    |          |                                       |         |
-| due_date     | date                     |                           | false    |          |                                       |         |
-| id           | uuid                     |                           | false    |          |                                       |         |
-| invoice_id   | uuid                     |                           | false    |          | [billing.invoice](billing.invoice.md) |         |
-| paid_at      | timestamp with time zone |                           | true     |          |                                       |         |
-| seq          | integer                  |                           | false    |          |                                       |         |
-| status       | varchar(16)              | 'open'::character varying | false    |          |                                       |         |
+| Name         | Type                     | Default                   | Nullable | Children                              | Parents                               | Comment |
+| ------------ | ------------------------ | ------------------------- | -------- | ------------------------------------- | ------------------------------------- | ------- |
+| amount_minor | bigint                   |                           | false    |                                       |                                       |         |
+| due_date     | date                     |                           | false    |                                       |                                       |         |
+| id           | uuid                     |                           | false    | [billing.payment](billing.payment.md) |                                       |         |
+| invoice_id   | uuid                     |                           | false    |                                       | [billing.invoice](billing.invoice.md) |         |
+| paid_at      | timestamp with time zone |                           | true     |                                       |                                       |         |
+| seq          | integer                  |                           | false    |                                       |                                       |         |
+| status       | varchar(16)              | 'open'::character varying | false    |                                       |                                       |         |
 
 ## Constraints
 
@@ -34,6 +34,7 @@
 ```mermaid
 erDiagram
 
+"billing.payment" }o--|| "billing.installment" : "FOREIGN KEY (installment_id) REFERENCES installment(id)"
 "billing.installment" }o--|| "billing.invoice" : "FOREIGN KEY (invoice_id) REFERENCES invoice(id)"
 
 "billing.installment" {
@@ -43,6 +44,17 @@ erDiagram
   uuid invoice_id FK
   timestamp_with_time_zone paid_at
   integer seq
+  varchar_16_ status
+}
+"billing.payment" {
+  bigint amount_minor
+  timestamp_with_time_zone captured_at
+  varchar_80_ client_key
+  timestamp_with_time_zone created_at
+  varchar_3_ currency
+  uuid id
+  uuid installment_id FK
+  varchar_128_ psp_intent_id
   varchar_16_ status
 }
 "billing.invoice" {

@@ -381,6 +381,138 @@
       ]
     },
     {
+      "name": "billing.payment",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "amount_minor",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "captured_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "client_key",
+          "type": "varchar(80)",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "currency",
+          "type": "varchar(3)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "installment_id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "psp_intent_id",
+          "type": "varchar(128)",
+          "nullable": true
+        },
+        {
+          "name": "status",
+          "type": "varchar(16)",
+          "nullable": false,
+          "default": "'pending'::character varying"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_payment_installment",
+          "def": "CREATE INDEX idx_payment_installment ON billing.payment USING btree (installment_id)",
+          "table": "billing.payment",
+          "columns": [
+            "installment_id"
+          ]
+        },
+        {
+          "name": "idx_payment_intent",
+          "def": "CREATE INDEX idx_payment_intent ON billing.payment USING btree (psp_intent_id)",
+          "table": "billing.payment",
+          "columns": [
+            "psp_intent_id"
+          ]
+        },
+        {
+          "name": "payment_client_key_key",
+          "def": "CREATE UNIQUE INDEX payment_client_key_key ON billing.payment USING btree (client_key)",
+          "table": "billing.payment",
+          "columns": [
+            "client_key"
+          ]
+        },
+        {
+          "name": "payment_pkey",
+          "def": "CREATE UNIQUE INDEX payment_pkey ON billing.payment USING btree (id)",
+          "table": "billing.payment",
+          "columns": [
+            "id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "payment_amount_minor_check",
+          "type": "CHECK",
+          "def": "CHECK ((amount_minor \u003e 0))",
+          "table": "billing.payment",
+          "referenced_table": "",
+          "columns": [
+            "amount_minor"
+          ]
+        },
+        {
+          "name": "payment_client_key_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (client_key)",
+          "table": "billing.payment",
+          "referenced_table": "",
+          "columns": [
+            "client_key"
+          ]
+        },
+        {
+          "name": "payment_installment_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (installment_id) REFERENCES installment(id)",
+          "table": "billing.payment",
+          "referenced_table": "billing.installment",
+          "columns": [
+            "installment_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "payment_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "billing.payment",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
       "name": "billing.schema_marker",
       "type": "BASE TABLE",
       "columns": [
@@ -415,6 +547,55 @@
           "referenced_table": "",
           "columns": [
             "module"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "billing.webhook_event",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "processed_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "psp_event_id",
+          "type": "varchar(128)",
+          "nullable": false
+        },
+        {
+          "name": "received_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "type",
+          "type": "varchar(64)",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "webhook_event_pkey",
+          "def": "CREATE UNIQUE INDEX webhook_event_pkey ON billing.webhook_event USING btree (psp_event_id)",
+          "table": "billing.webhook_event",
+          "columns": [
+            "psp_event_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "webhook_event_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (psp_event_id)",
+          "table": "billing.webhook_event",
+          "referenced_table": "",
+          "columns": [
+            "psp_event_id"
           ]
         }
       ]
@@ -643,6 +824,19 @@
       ],
       "parent_cardinality": "exactly_one",
       "def": "FOREIGN KEY (policy_number) REFERENCES ingested_policy(policy_number)"
+    },
+    {
+      "table": "billing.payment",
+      "columns": [
+        "installment_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "billing.installment",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (installment_id) REFERENCES installment(id)"
     }
   ],
   "driver": {

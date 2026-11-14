@@ -8,7 +8,9 @@
 | [billing.ingested_policy](billing.ingested_policy.md)   | 10      |         | BASE TABLE |
 | [billing.installment](billing.installment.md)           | 7       |         | BASE TABLE |
 | [billing.invoice](billing.invoice.md)                   | 6       |         | BASE TABLE |
+| [billing.payment](billing.payment.md)                   | 9       |         | BASE TABLE |
 | [billing.schema_marker](billing.schema_marker.md)       | 2       |         | BASE TABLE |
+| [billing.webhook_event](billing.webhook_event.md)       | 4       |         | BASE TABLE |
 | [complaints.audit_log](complaints.audit_log.md)         | 7       |         | BASE TABLE |
 | [complaints.complaint](complaints.complaint.md)         | 10      |         | BASE TABLE |
 | [complaints.schema_marker](complaints.schema_marker.md) | 2       |         | BASE TABLE |
@@ -20,6 +22,7 @@ erDiagram
 
 "billing.installment" }o--|| "billing.invoice" : "FOREIGN KEY (invoice_id) REFERENCES invoice(id)"
 "billing.invoice" |o--|| "billing.ingested_policy" : "FOREIGN KEY (policy_number) REFERENCES ingested_policy(policy_number)"
+"billing.payment" }o--|| "billing.installment" : "FOREIGN KEY (installment_id) REFERENCES installment(id)"
 
 "billing.audit_log" {
   varchar_32_ action
@@ -59,9 +62,26 @@ erDiagram
   varchar_16_ status
   bigint total_minor
 }
+"billing.payment" {
+  bigint amount_minor
+  timestamp_with_time_zone captured_at
+  varchar_80_ client_key
+  timestamp_with_time_zone created_at
+  varchar_3_ currency
+  uuid id
+  uuid installment_id FK
+  varchar_128_ psp_intent_id
+  varchar_16_ status
+}
 "billing.schema_marker" {
   timestamp_with_time_zone initialized
   varchar_64_ module
+}
+"billing.webhook_event" {
+  timestamp_with_time_zone processed_at
+  varchar_128_ psp_event_id
+  timestamp_with_time_zone received_at
+  varchar_64_ type
 }
 "complaints.audit_log" {
   varchar_64_ action
