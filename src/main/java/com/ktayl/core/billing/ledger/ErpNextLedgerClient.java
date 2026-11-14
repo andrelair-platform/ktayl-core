@@ -3,6 +3,7 @@ package com.ktayl.core.billing.ledger;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -33,13 +34,22 @@ public class ErpNextLedgerClient implements LedgerClient {
 
     private final RestClient http;
     private final String company;
+    private final String partyAccount; // the one account that needs a Party (the receivable) — "" if none
+    private final String partyType;
+    private final String party;
 
     public ErpNextLedgerClient(
             @Value("${ledger.erpnext.base-url:http://erpnext.erp.svc:8080}") String baseUrl,
             @Value("${ledger.erpnext.api-key}") String apiKey,
             @Value("${ledger.erpnext.api-secret:}") String apiSecret,
-            @Value("${ledger.erpnext.company:ktayl-solution}") String company) {
+            @Value("${ledger.erpnext.company:ktayl-solution}") String company,
+            @Value("${ledger.erpnext.party-account:}") String partyAccount,
+            @Value("${ledger.erpnext.party-type:Customer}") String partyType,
+            @Value("${ledger.erpnext.party:}") String party) {
         this.company = company;
+        this.partyAccount = partyAccount;
+        this.partyType = partyType;
+        this.party = party;
         this.http = RestClient.builder()
                 .baseUrl(baseUrl)
                 .defaultHeader("Authorization", "token " + apiKey + ":" + apiSecret)
@@ -55,21 +65,29 @@ public class ErpNextLedgerClient implements LedgerClient {
         }
         List<Map<String, Object>> accounts = new ArrayList<>();
         for (JournalEntry.Line l : entry.lines()) {
-            accounts.add(Map.of(
-                    "account", l.account(),
-                    "debit_in_account_currency", minorToUnits(l.debitMinor()),
-                    "credit_in_account_currency", minorToUnits(l.creditMinor())));
+            Map<String, Object> line = new HashMap<>();
+            line.put("account", l.account());
+            line.put("debit_in_account_currency", minorToUnits(l.debitMinor()));
+            line.put("credit_in_account_currency", minorToUnits(l.creditMinor()));
+            // ERPNext requires a Party on a Receivable/Payable account — attach it to that one leg
+            if (!partyAccount.isBlank() && partyAccount.equals(l.account()) && !party.isBlank()) {
+                line.put("party_type", partyType);
+                line.put("party", party);
+            }
+            accounts.add(line);
         }
-        Map<String, Object> body = Map.of(
-                "posting_date", LocalDate.now().toString(),
-                "company", company,
-                "voucher_type", "Journal Entry",
-                "cheque_no", idempotencyRef,
-                "user_remark", entry.remark(),
-                "docstatus", 1, // submit straight to the ledger (not a draft)
-                "accounts", accounts);
+        String today = LocalDate.now().toString();
+        Map<String, Object> body = new HashMap<>();
+        body.put("posting_date", today);
+        body.put("company", company);
+        body.put("voucher_type", "Journal Entry");
+        body.put("cheque_no", idempotencyRef);
+        body.put("cheque_date", today); // required by ERPNext whenever cheque_no is set (our idempotency key)
+        body.put("user_remark", entry.remark());
+        body.put("docstatus", 1); // submit straight to the ledger (not a draft)
+        body.put("accounts", accounts);
 
-        Map<?, ?> resp = http.post().uri(JE).contentType(MediaType.APPLICATION_JSON).body(body)
+        Map<?, ?> resp = http.post().uri(uri -> uri.path(JE).build()).contentType(MediaType.APPLICATION_JSON).body(body)
                 .retrieve().body(Map.class);
         String name = dataName(resp);
         if (name == null) {
