@@ -16,6 +16,8 @@
 | [complaints.audit_log](complaints.audit_log.md)         | 7       |         | BASE TABLE |
 | [complaints.complaint](complaints.complaint.md)         | 10      |         | BASE TABLE |
 | [complaints.schema_marker](complaints.schema_marker.md) | 2       |         | BASE TABLE |
+| [policy.policy](policy.policy.md)                       | 9       |         | BASE TABLE |
+| [policy.policy_audit_log](policy.policy_audit_log.md)   | 8       |         | BASE TABLE |
 
 ## Relations
 
@@ -26,6 +28,7 @@ erDiagram
 "billing.installment" }o--|| "billing.invoice" : "FOREIGN KEY (invoice_id) REFERENCES invoice(id)"
 "billing.invoice" |o--|| "billing.ingested_policy" : "FOREIGN KEY (policy_number) REFERENCES ingested_policy(policy_number)"
 "billing.payment" }o--|| "billing.installment" : "FOREIGN KEY (installment_id) REFERENCES installment(id)"
+"policy.policy_audit_log" }o--|| "policy.policy" : "FOREIGN KEY (policy_id) REFERENCES policy.policy(id)"
 
 "billing.audit_log" {
   varchar_32_ action
@@ -133,6 +136,27 @@ erDiagram
 "complaints.schema_marker" {
   timestamp_with_time_zone initialized
   varchar_64_ module
+}
+"policy.policy" {
+  timestamp_with_time_zone created_at
+  date effective_date
+  date expiry_date
+  varchar_256_ holder_name
+  uuid id
+  varchar_64_ policy_number
+  varchar_64_ product_code
+  varchar_16_ status
+  timestamp_with_time_zone updated_at
+}
+"policy.policy_audit_log" {
+  varchar_32_ action
+  varchar_128_ actor_id
+  timestamp_with_time_zone at
+  varchar_16_ from_status
+  bigint id
+  uuid policy_id FK
+  varchar_256_ reason
+  varchar_16_ to_status
 }
 ```
 
