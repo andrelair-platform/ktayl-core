@@ -1,6 +1,6 @@
 # ADR-014 — Fold `ktayl-claims` and `ktayl-policy-service` into `ktayl-core` (evidence-gated, phased)
 
-**Status:** Proposed (2026-11-14 — awaiting owner ratification) · **Owner:** SA/TL · **Context:** applies the
+**Status:** Accepted (2026-11-14 — ratified by owner) · **Owner:** SA/TL · **Context:** applies the
 ADR-004 evidence gate to two specific live services, at owner direction. Builds on ADR-004 (migration is
 evidence-gated), ADR-008 (extraction criteria), ADR-009 (strangler migration + rollback), ADR-001 (stack),
 and the org rule `architecture-strategy.md`. **Nothing destructive happens on this ADR being written — it
@@ -56,7 +56,7 @@ stable boundary, or be done as the *final* strangler step (legacy → claims mod
   strangler+rollback, policy **first** (it's the shared kernel; higher value, bounded by its thinness),
   claims **after** its legacy strangler stabilises. Each phase is non-destructive until its gate passes.
 
-## Decision (proposed — owner ratifies)
+## Decision (ratified 2026-11-14)
 Adopt **(c)**. Specifically:
 1. **Sequence: policy-service first, claims later.** Policy is the shared-kernel data the monolith most
    wants in-process and is *thin* (bounded rewrite); claims is cheap to fold technically but must not be
