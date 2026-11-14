@@ -71,4 +71,16 @@ class StripeWebhookControllerTest {
         verify(capture, never()).capturePaymentSucceeded(org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
     }
+
+    @Test
+    void rejects_a_missing_signature_header_with_400_not_500() throws Exception {
+        // no Stripe-Signature header at all — must be a clean 400, not an NPE/5xx (Webhook.constructEvent
+        // NPEs on a null header). Regression guard for the prod probe that surfaced this.
+        mvc.perform(post("/webhooks/stripe")
+                        .contentType(MediaType.APPLICATION_JSON).content(PAYLOAD))
+                .andExpect(status().isBadRequest());
+
+        verify(capture, never()).capturePaymentSucceeded(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+    }
 }
