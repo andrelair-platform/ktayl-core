@@ -75,8 +75,12 @@ Next.js (one app / few BFFs)
 ```
 
 ## Explicitly NOT in scope (yet)
-- Rewriting Policy (Go) or Underwriting (Python) — **Phase 4+ only, evidence-gated.** They may stay
-  permanently (Python pricing math; Go throughput) — that is a legitimate outcome, not a failure.
+- Rewriting **Underwriting (Python)** — **Phase 4+ only, evidence-gated.** It may stay permanently
+  (Python pricing math) — that is a legitimate outcome, not a failure. **Policy (Go) is now IN scope**
+  as the first fold ([ADR-014](architecture/adr/ADR-014-fold-claims-and-policy-into-core.md) +
+  [ADR-015](architecture/adr/ADR-015-policy-module-folded-pas.md) +
+  [SPEC](specs/spec-policy-fold/SPEC.md)): Phase 1 (bind-path core + DORA audit) built additively; the
+  Go service keeps running and is retired only at its own Phase-6 gate.
 - Deleting any repo/service/DB — **Phase 6 only, after acceptance.**
 
 Related: `architecture-strategy.md` (org rule), `phase-0-inventory.md` (baseline), the ADRs above.

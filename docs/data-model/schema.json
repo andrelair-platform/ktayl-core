@@ -1039,6 +1039,219 @@
           ]
         }
       ]
+    },
+    {
+      "name": "policy.policy",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "effective_date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "expiry_date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "holder_name",
+          "type": "varchar(256)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "policy_number",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "product_code",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "varchar(16)",
+          "nullable": false,
+          "default": "'DRAFT'::character varying"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_policy_status",
+          "def": "CREATE INDEX idx_policy_status ON policy.policy USING btree (status)",
+          "table": "policy.policy",
+          "columns": [
+            "status"
+          ]
+        },
+        {
+          "name": "policy_pkey",
+          "def": "CREATE UNIQUE INDEX policy_pkey ON policy.policy USING btree (id)",
+          "table": "policy.policy",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "policy_policy_number_key",
+          "def": "CREATE UNIQUE INDEX policy_policy_number_key ON policy.policy USING btree (policy_number)",
+          "table": "policy.policy",
+          "columns": [
+            "policy_number"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "chk_policy_dates",
+          "type": "CHECK",
+          "def": "CHECK ((effective_date \u003c expiry_date))",
+          "table": "policy.policy",
+          "referenced_table": "",
+          "columns": [
+            "effective_date",
+            "expiry_date"
+          ]
+        },
+        {
+          "name": "chk_policy_status",
+          "type": "CHECK",
+          "def": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'SUBMITTED'::character varying, 'ACTIVE'::character varying, 'AMENDED'::character varying, 'CANCELLED'::character varying, 'EXPIRED'::character varying, 'REJECTED'::character varying])::text[])))",
+          "table": "policy.policy",
+          "referenced_table": "",
+          "columns": [
+            "status"
+          ]
+        },
+        {
+          "name": "policy_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "policy.policy",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "policy_policy_number_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (policy_number)",
+          "table": "policy.policy",
+          "referenced_table": "",
+          "columns": [
+            "policy_number"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "policy.policy_audit_log",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "action",
+          "type": "varchar(32)",
+          "nullable": false
+        },
+        {
+          "name": "actor_id",
+          "type": "varchar(128)",
+          "nullable": false
+        },
+        {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "from_status",
+          "type": "varchar(16)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "policy_id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "reason",
+          "type": "varchar(256)",
+          "nullable": true
+        },
+        {
+          "name": "to_status",
+          "type": "varchar(16)",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_policy_audit_policy",
+          "def": "CREATE INDEX idx_policy_audit_policy ON policy.policy_audit_log USING btree (policy_id)",
+          "table": "policy.policy_audit_log",
+          "columns": [
+            "policy_id"
+          ]
+        },
+        {
+          "name": "policy_audit_log_pkey",
+          "def": "CREATE UNIQUE INDEX policy_audit_log_pkey ON policy.policy_audit_log USING btree (id)",
+          "table": "policy.policy_audit_log",
+          "columns": [
+            "id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "policy_audit_log_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "policy.policy_audit_log",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "policy_audit_log_policy_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (policy_id) REFERENCES policy.policy(id)",
+          "table": "policy.policy_audit_log",
+          "referenced_table": "policy.policy",
+          "columns": [
+            "policy_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        }
+      ]
     }
   ],
   "relations": [
@@ -1093,6 +1306,19 @@
       ],
       "parent_cardinality": "exactly_one",
       "def": "FOREIGN KEY (installment_id) REFERENCES installment(id)"
+    },
+    {
+      "table": "policy.policy_audit_log",
+      "columns": [
+        "policy_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "policy.policy",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (policy_id) REFERENCES policy.policy(id)"
     }
   ],
   "driver": {
