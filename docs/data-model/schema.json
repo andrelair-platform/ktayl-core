@@ -75,6 +75,125 @@
       ]
     },
     {
+      "name": "billing.dunning_case",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "attempts",
+          "type": "integer",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "installment_id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "last_reason",
+          "type": "varchar(300)",
+          "nullable": true
+        },
+        {
+          "name": "policy_number",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "varchar(20)",
+          "nullable": false,
+          "default": "'open'::character varying"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "dunning_case_installment_id_key",
+          "def": "CREATE UNIQUE INDEX dunning_case_installment_id_key ON billing.dunning_case USING btree (installment_id)",
+          "table": "billing.dunning_case",
+          "columns": [
+            "installment_id"
+          ]
+        },
+        {
+          "name": "dunning_case_pkey",
+          "def": "CREATE UNIQUE INDEX dunning_case_pkey ON billing.dunning_case USING btree (id)",
+          "table": "billing.dunning_case",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_dunning_policy",
+          "def": "CREATE INDEX idx_dunning_policy ON billing.dunning_case USING btree (policy_number)",
+          "table": "billing.dunning_case",
+          "columns": [
+            "policy_number"
+          ]
+        },
+        {
+          "name": "idx_dunning_status",
+          "def": "CREATE INDEX idx_dunning_status ON billing.dunning_case USING btree (status)",
+          "table": "billing.dunning_case",
+          "columns": [
+            "status"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "dunning_case_installment_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (installment_id) REFERENCES installment(id)",
+          "table": "billing.dunning_case",
+          "referenced_table": "billing.installment",
+          "columns": [
+            "installment_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "dunning_case_installment_id_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (installment_id)",
+          "table": "billing.dunning_case",
+          "referenced_table": "",
+          "columns": [
+            "installment_id"
+          ]
+        },
+        {
+          "name": "dunning_case_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "billing.dunning_case",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
       "name": "billing.ingested_policy",
       "type": "BASE TABLE",
       "columns": [
@@ -923,6 +1042,19 @@
     }
   ],
   "relations": [
+    {
+      "table": "billing.dunning_case",
+      "columns": [
+        "installment_id"
+      ],
+      "cardinality": "zero_or_one",
+      "parent_table": "billing.installment",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (installment_id) REFERENCES installment(id)"
+    },
     {
       "table": "billing.installment",
       "columns": [
