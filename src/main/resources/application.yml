@@ -86,6 +86,10 @@ ledger:
       premium-receivable: ${LEDGER_ACC_PREMIUM_RECEIVABLE:Premium Receivable}
       premium-income: ${LEDGER_ACC_PREMIUM_INCOME:Premium Income}
       cash: ${LEDGER_ACC_CASH:Cash}
+    # ERPNext requires a Party on a Receivable account — attach it to this account (the receivable) only.
+    party-account: ${LEDGER_ERPNEXT_PARTY_ACCOUNT:}
+    party-type: ${LEDGER_ERPNEXT_PARTY_TYPE:Customer}
+    party: ${LEDGER_ERPNEXT_PARTY:}
 
 # Complaints (CMPL-012): the acknowledgement-due PLACEHOLDER window (next-action SLA marker — deliberately
 # NOT the ACPR/EIOPA/IDD statutory deadline). ISO-8601 duration; acknowledge() sets due = now + this.
