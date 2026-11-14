@@ -48,6 +48,13 @@ public class StripeWebhookController {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(Map.of("status", 503, "detail", "stripe webhook not configured"));
         }
+        // A missing Stripe-Signature is a bad request, not a 5xx — Webhook.constructEvent NPEs on a null
+        // header rather than throwing SignatureVerificationException, so reject it cleanly first.
+        if (signature == null || signature.isBlank()) {
+            log.warn("rejected Stripe webhook — no Stripe-Signature header");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("status", 400, "detail", "missing signature"));
+        }
         Event event;
         try {
             event = Webhook.constructEvent(payload, signature, webhookSecret); // verifies the signature
