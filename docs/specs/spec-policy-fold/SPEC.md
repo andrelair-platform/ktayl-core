@@ -31,7 +31,9 @@ do **not** call the PAS. ⇒ repoint = one base-URL change (`policy_service_url`
 - `policy` schema (V10): `policy.policy` + `policy.policy_audit_log`.
 - Hexagonal module (ADR-013): `domain` (Policy aggregate + state machine + ports, PURE) · `application`
   (PolicyService + PolicyAuditLog port) · `infrastructure/{persistence,web}` · `api` (`PolicyQuery` named interface).
-- REST: `POST /v1/policies` (201 / 409), `GET ?policy_number=`, `GET /{id}`, `POST /{id}/submit|activate|cancel`.
+- REST: `POST /v1/policies` (201 / 409), `GET ?policy_number=` (PAS **list** envelope `{"items":[…]}`, always
+  200 — so underwriting's 409-resolve filters client-side), `GET /{id}` (single object, 404-on-missing),
+  `POST /{id}/submit|activate|cancel`.
 - DORA audit on every transition; actor from the token.
 - Tests: L1 state machine (done), **L2** real-Postgres bind flow + audit + 409 + resolve, **L3** API contract.
 - **Gate:** CI green; the module is additive — the Go PAS is untouched.
