@@ -5,6 +5,7 @@ import com.ktayl.core.policy.domain.InvalidPolicyException;
 import com.ktayl.core.policy.domain.PolicyAlreadyExistsException;
 import com.ktayl.core.policy.domain.PolicyNotFoundException;
 import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -37,5 +38,15 @@ public class PolicyExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> badRequest(IllegalArgumentException e) {
         return ResponseEntity.badRequest().body(Map.of("status", 400, "detail", e.getMessage()));
+    }
+
+    /**
+     * Safety net: a DB constraint violation (e.g. a value longer than its column) is a BAD INPUT → 400,
+     * never a 500. The domain validates lengths up front (so this rarely fires), but this guarantees the
+     * "4xx never 5xx on bad input" contract for anything the domain doesn't pre-check (QA gate, 2026-11-15).
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> dataIntegrity(DataIntegrityViolationException e) {
+        return ResponseEntity.badRequest().body(Map.of("status", 400, "detail", "request violates a data constraint"));
     }
 }

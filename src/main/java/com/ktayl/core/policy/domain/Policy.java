@@ -17,6 +17,12 @@ import java.util.UUID;
  */
 public final class Policy {
 
+    // Max lengths mirror the schema (V10 varchar bounds) — enforced in the domain so oversized input is a
+    // clean 422, not a DB DataIntegrityViolation surfacing as a 500 (caught by the QA gate, 2026-11-15).
+    private static final int POLICY_NUMBER_MAX = 64;
+    private static final int HOLDER_NAME_MAX = 256;
+    private static final int PRODUCT_CODE_MAX = 64;
+
     private final UUID id;
     private final String policyNumber;   // the shared key, deterministic from the quote (idempotency)
     private String holderName;           // mutable only via update(), and only while DRAFT
@@ -48,6 +54,9 @@ public final class Policy {
         if (isBlank(productCode)) throw new InvalidPolicyException("product_code is required");
         if (effectiveDate == null || expiryDate == null) throw new InvalidPolicyException("effective/expiry dates are required");
         if (!effectiveDate.isBefore(expiryDate)) throw new InvalidPolicyException("effective_date must be before expiry_date");
+        requireMaxLen(policyNumber, POLICY_NUMBER_MAX, "policy_number");
+        requireMaxLen(holderName, HOLDER_NAME_MAX, "holder_name");
+        requireMaxLen(productCode, PRODUCT_CODE_MAX, "product_code");
         return new Policy(UUID.randomUUID(), policyNumber, holderName, productCode, effectiveDate, expiryDate,
                 PolicyStatus.DRAFT, now, now);
     }
@@ -63,6 +72,8 @@ public final class Policy {
         if (isBlank(productCode)) throw new InvalidPolicyException("product_code is required");
         if (effectiveDate == null || expiryDate == null) throw new InvalidPolicyException("effective/expiry dates are required");
         if (!effectiveDate.isBefore(expiryDate)) throw new InvalidPolicyException("effective_date must be before expiry_date");
+        requireMaxLen(holderName, HOLDER_NAME_MAX, "holder_name");
+        requireMaxLen(productCode, PRODUCT_CODE_MAX, "product_code");
         this.holderName = holderName;
         this.productCode = productCode;
         this.effectiveDate = effectiveDate;
@@ -134,6 +145,12 @@ public final class Policy {
     }
 
     private static boolean isBlank(String s) { return s == null || s.isBlank(); }
+
+    private static void requireMaxLen(String value, int max, String field) {
+        if (value != null && value.length() > max) {
+            throw new InvalidPolicyException(field + " exceeds the maximum length of " + max);
+        }
+    }
 
     public UUID id() { return id; }
     public String policyNumber() { return policyNumber; }
