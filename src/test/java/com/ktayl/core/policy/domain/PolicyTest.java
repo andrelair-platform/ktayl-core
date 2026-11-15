@@ -87,6 +87,17 @@ class PolicyTest {
     }
 
     @Test
+    void create_rejects_oversized_fields_before_the_db() {
+        // a holder longer than the column (varchar 256) must be a clean 422, not a DB-violation 500 (QA gate)
+        assertThatThrownBy(() -> Policy.create("P", "A".repeat(257), "p",
+                        LocalDate.of(2026, 1, 1), LocalDate.of(2027, 1, 1), NOW))
+                .isInstanceOf(InvalidPolicyException.class).hasMessageContaining("maximum length");
+        assertThatThrownBy(() -> Policy.create("P".repeat(65), "h", "p",
+                        LocalDate.of(2026, 1, 1), LocalDate.of(2027, 1, 1), NOW))
+                .isInstanceOf(InvalidPolicyException.class);
+    }
+
+    @Test
     void update_revalidates_fields() {
         assertThatThrownBy(() -> draft().update(" ", "p", LocalDate.of(2026, 1, 1), LocalDate.of(2027, 1, 1), NOW))
                 .isInstanceOf(InvalidPolicyException.class);
