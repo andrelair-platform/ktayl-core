@@ -81,6 +81,45 @@ class PolicyBindFlowIntegrationTest {
     }
 
     @Test
+    void keyset_pagination_pages_through_in_created_order_with_a_cursor() {
+        // create 5 DRAFT policies; page them 2 at a time via the (createdAt,id) keyset
+        for (int i = 0; i < 5; i++) {
+            policies.create(cmd("POL-PAGE-" + i), "svc.underwriting");
+        }
+        java.util.List<com.ktayl.core.policy.domain.Policy> page1 =
+                policies.list(com.ktayl.core.policy.domain.PolicyStatus.DRAFT, null, null, 2);
+        assertThat(page1).hasSize(2);
+        var last = page1.get(1);
+        java.util.List<com.ktayl.core.policy.domain.Policy> page2 =
+                policies.list(com.ktayl.core.policy.domain.PolicyStatus.DRAFT, last.createdAt(), last.id(), 2);
+        assertThat(page2).hasSize(2);
+        // no overlap between the pages (the keyset excludes the cursor row)
+        assertThat(page2).noneSatisfy(p -> assertThat(p.id()).isEqualTo(last.id()));
+        // the status filter excludes a non-DRAFT policy
+        var active = policies.create(cmd("POL-PAGE-ACTIVE"), "svc.underwriting");
+        policies.submit(active.id(), "svc.underwriting");
+        policies.activate(active.id(), "svc.underwriting");
+        assertThat(policies.list(com.ktayl.core.policy.domain.PolicyStatus.ACTIVE, null, null, 50))
+                .anySatisfy(p -> assertThat(p.policyNumber()).isEqualTo("POL-PAGE-ACTIVE"))
+                .allSatisfy(p -> assertThat(p.status()).isEqualTo(com.ktayl.core.policy.domain.PolicyStatus.ACTIVE));
+    }
+
+    @Test
+    void update_persists_new_details_on_a_draft_and_audits_it() {
+        var p = policies.create(cmd("POL-UPD-1"), "svc.underwriting");
+        policies.update(p.id(), new com.ktayl.core.policy.application.UpdatePolicyCommand(
+                "ACME RENAMED", "AVIATION", java.time.LocalDate.of(2026, 3, 1), java.time.LocalDate.of(2027, 3, 1)),
+                "agent.kanmegnea");
+        var reread = policies.get(p.id());
+        assertThat(reread.holderName()).isEqualTo("ACME RENAMED");
+        assertThat(reread.productCode()).isEqualTo("AVIATION");
+        assertThat(auditLog.findAll()).anySatisfy(a -> {
+            assertThat(a.getPolicyId()).isEqualTo(p.id());
+            assertThat(a.getAction()).isEqualTo("UPDATE");
+        });
+    }
+
+    @Test
     void cancel_persists_the_terminal_state_with_a_reason_in_the_audit() {
         Policy p = policies.create(cmd("POL-CXL-1"), "svc.underwriting");
         policies.submit(p.id(), "svc.underwriting");

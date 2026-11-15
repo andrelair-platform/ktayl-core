@@ -1,16 +1,19 @@
 package com.ktayl.core.policy.infrastructure.web;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.ktayl.core.policy.application.PolicyService;
 import com.ktayl.core.policy.domain.IllegalPolicyTransitionException;
+import com.ktayl.core.policy.domain.InvalidPolicyException;
 import com.ktayl.core.policy.domain.Policy;
 import com.ktayl.core.policy.domain.PolicyAlreadyExistsException;
 import com.ktayl.core.policy.domain.PolicyNotFoundException;
@@ -18,6 +21,7 @@ import com.ktayl.core.policy.domain.PolicyStatus;
 import com.ktayl.core.shared.config.SecurityConfig;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -102,10 +106,68 @@ class PolicyApiContractTest {
     }
 
     @Test
-    void list_without_a_filter_is_200_with_an_empty_page_in_phase_1() throws Exception {
-        mvc.perform(get("/v1/policies").with(svc()))
+    void keyset_list_returns_items_and_a_next_cursor_when_the_page_is_full() throws Exception {
+        when(policies.list(any(), any(), any(), anyInt()))
+                .thenReturn(List.of(policy(PolicyStatus.DRAFT), policy(PolicyStatus.DRAFT)));
+        mvc.perform(get("/v1/policies").param("limit", "2").with(svc()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items").isEmpty());
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.next_cursor").isNotEmpty()); // full page → a cursor to continue
+    }
+
+    @Test
+    void an_invalid_status_filter_is_400() throws Exception {
+        mvc.perform(get("/v1/policies").param("status", "NOPE").with(svc()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void an_invalid_cursor_is_400() throws Exception {
+        mvc.perform(get("/v1/policies").param("cursor", "!!!not-base64!!!").with(svc()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void update_returns_200_with_the_new_details() throws Exception {
+        when(policies.update(eq(ID), any(), any())).thenReturn(policy(PolicyStatus.DRAFT));
+        mvc.perform(put("/v1/policies/{id}", ID).with(svc())
+                        .contentType("application/json")
+                        .content("{\"holder_name\":\"ACME RENAMED\",\"product_code\":\"AVIATION\","
+                                + "\"effective_date\":\"2026-03-01\",\"expiry_date\":\"2027-03-01\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(ID.toString()));
+    }
+
+    @Test
+    void update_past_draft_is_409() throws Exception {
+        when(policies.update(eq(ID), any(), any()))
+                .thenThrow(new IllegalPolicyTransitionException("cannot update a SUBMITTED policy"));
+        mvc.perform(put("/v1/policies/{id}", ID).with(svc())
+                        .contentType("application/json")
+                        .content("{\"holder_name\":\"h\",\"product_code\":\"p\","
+                                + "\"effective_date\":\"2026-01-01\",\"expiry_date\":\"2027-01-01\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void update_of_an_unknown_id_is_404() throws Exception {
+        when(policies.update(eq(ID), any(), any())).thenThrow(new PolicyNotFoundException("no policy " + ID));
+        mvc.perform(put("/v1/policies/{id}", ID).with(svc())
+                        .contentType("application/json")
+                        .content("{\"holder_name\":\"h\",\"product_code\":\"p\","
+                                + "\"effective_date\":\"2026-01-01\",\"expiry_date\":\"2027-01-01\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void update_with_invalid_dates_is_422() throws Exception {
+        when(policies.update(eq(ID), any(), any()))
+                .thenThrow(new InvalidPolicyException("effective_date must be before expiry_date"));
+        mvc.perform(put("/v1/policies/{id}", ID).with(svc())
+                        .contentType("application/json")
+                        .content("{\"holder_name\":\"h\",\"product_code\":\"p\","
+                                + "\"effective_date\":\"2027-01-01\",\"expiry_date\":\"2026-01-01\"}"))
+                .andExpect(status().isUnprocessableEntity());
     }
 
     @Test

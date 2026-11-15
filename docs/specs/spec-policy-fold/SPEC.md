@@ -10,7 +10,7 @@ is the committed implementation contract that carries its requirements (`BF-POL-
 | **FR — BF-POL-01** | Create a policy (holder, product_code, effective/expiry dates[, coverages]) | 1 (coverages → 1b) |
 | **FR — BF-POL-02** | Enforce the state machine DRAFT→SUBMITTED→ACTIVE→AMENDED→CANCELLED/EXPIRED/REJECTED | 1 (amend/reject/expire endpoints → 1b) |
 | **SEC — BF-POL-03** | Every transition writes an immutable audit row (DORA Art.9): actor_id + from→to + reason + timestamp | **1 (done)** |
-| **FR — BF-POL-04** | List policies with filters + cursor pagination | 1b |
+| **FR — BF-POL-04** | List policies with filters + cursor pagination; update a DRAFT policy | **done** |
 | **FR — BF-POL-05** | Attestation PDF on demand (ACPR Art.L113-5) → MinIO + presigned URL | 1b |
 | **AI/INT — BF-POL-06** | Lifecycle events on every transition (in-process for modules; external `policy.activated` NATS for off-monolith) | 1b |
 | **SEC — BF-POL-07** | All endpoints Authentik-JWT-protected (except health); actor audited | **1 (done)** |
@@ -39,9 +39,18 @@ do **not** call the PAS. ⇒ repoint = one base-URL change (`policy_service_url`
 - **Gate:** CI green; the module is additive — the Go PAS is untouched.
 
 ### Phase 1b — the rest of the PAS surface
-Coverages (eurocents) · premium-metadata · documents + **attestation PDF** (MinIO, ACPR) · the remaining
-lifecycle endpoints (amend/confirm/reject/expire-batch) · list+pagination (BF-POL-04) · lifecycle events
-(in-process + the external `policy.activated` via the ktayl-core transactional-outbox pattern).
+- **DONE — list + pagination + update (BF-POL-04):** `GET /v1/policies?status=&cursor=&limit=` (keyset on
+  `(created_at,id)`, opaque base64 cursor carried forward from the PAS, `{items,next_cursor}` envelope) +
+  `PUT /v1/policies/{id}` (DRAFT-only edit, audited). The keyset uses **two queries** (first-page / after-cursor)
+  so a nullable timestamp never lands in an `IS NULL` context — Postgres can't infer its type there.
+- **DROPPED — coverages + premiums (fold simplification, documented decision):** both tables existed in the
+  PAS schema but had **no write path** (the PAS create took only holder/product/dates; the router had **no**
+  coverage/premium endpoints) — they were orphan schema. Premiums would also duplicate **billing** (the SoR
+  via the UW bound-risk event → invoicing → GL). So neither is carried into the module.
+- **Remaining:** documents + **attestation PDF** (MinIO, ACPR Art.L113-5 — BF-POL-05, infra: PDF lib + MinIO +
+  ESO/Vault creds + egress netpol) · the other lifecycle endpoints (amend/confirm/reject/expire-batch) ·
+  lifecycle events (in-process + the external `policy.activated` via the ktayl-core transactional-outbox).
+  All **need-first** — built when a consumer exists (attestation is cert-valuable even dormant).
 
 ### Phase 2 — backfill
 One-off job: copy the existing policies (+ coverages/documents) from the Go PAS DB into the `policy` schema.

@@ -9,8 +9,8 @@ import java.util.UUID;
  * imports, so every rule is testable without Spring or a database. This is the ktayl-core home for the PAS
  * policy registry being folded in from ktayl-policy-service (ADR-014, Phase 1 — the bind path).
  *
- * <p>Lifecycle (mirrors the PAS): {@code DRAFT → SUBMITTED → ACTIVE}, then {@code ACTIVE → SUSPENDED} and
- * {@code (not TERMINATED) → TERMINATED} (cancel). Underwriting's bind drives create → submit → activate.
+ * <p>Lifecycle (mirrors the PAS): {@code DRAFT → SUBMITTED → ACTIVE → AMENDED}, with {@code SUBMITTED →
+ * REJECTED} and {@code ACTIVE → CANCELLED / EXPIRED}. Underwriting's bind drives create → submit → activate.
  * Each transition runs only from its legal predecessor, else {@link IllegalPolicyTransitionException}.
  *
  * <p>{@link #rehydrate} exists only for the persistence adapter to rebuild an aggregate from stored state.
@@ -19,10 +19,10 @@ public final class Policy {
 
     private final UUID id;
     private final String policyNumber;   // the shared key, deterministic from the quote (idempotency)
-    private final String holderName;
-    private final String productCode;
-    private final LocalDate effectiveDate;
-    private final LocalDate expiryDate;
+    private String holderName;           // mutable only via update(), and only while DRAFT
+    private String productCode;
+    private LocalDate effectiveDate;
+    private LocalDate expiryDate;
     private final Instant createdAt;
     private PolicyStatus status;
     private Instant updatedAt;
@@ -50,6 +50,24 @@ public final class Policy {
         if (!effectiveDate.isBefore(expiryDate)) throw new InvalidPolicyException("effective_date must be before expiry_date");
         return new Policy(UUID.randomUUID(), policyNumber, holderName, productCode, effectiveDate, expiryDate,
                 PolicyStatus.DRAFT, now, now);
+    }
+
+    /**
+     * Update the mutable details (holder, product, dates) — allowed ONLY while DRAFT (BF-POL-04). Once a
+     * policy is submitted/active, a change is an <em>amendment</em> (its own lifecycle), not an edit; this
+     * guards against silently rewriting a live contract. Re-validates the required fields + date ordering.
+     */
+    public void update(String holderName, String productCode, LocalDate effectiveDate, LocalDate expiryDate, Instant now) {
+        requireStatus(PolicyStatus.DRAFT, "update");
+        if (isBlank(holderName)) throw new InvalidPolicyException("holder_name is required");
+        if (isBlank(productCode)) throw new InvalidPolicyException("product_code is required");
+        if (effectiveDate == null || expiryDate == null) throw new InvalidPolicyException("effective/expiry dates are required");
+        if (!effectiveDate.isBefore(expiryDate)) throw new InvalidPolicyException("effective_date must be before expiry_date");
+        this.holderName = holderName;
+        this.productCode = productCode;
+        this.effectiveDate = effectiveDate;
+        this.expiryDate = expiryDate;
+        this.updatedAt = now;
     }
 
     /** DRAFT → SUBMITTED. */

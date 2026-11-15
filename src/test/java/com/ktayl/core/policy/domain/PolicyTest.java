@@ -68,6 +68,32 @@ class PolicyTest {
         assertThatThrownBy(() -> active().cancel("  ", NOW)).isInstanceOf(InvalidPolicyException.class);
     }
 
+    @Test
+    void update_changes_details_only_while_draft() {
+        Policy p = draft();
+        p.update("NEW HOLDER", "AVIATION", LocalDate.of(2026, 2, 1), LocalDate.of(2027, 2, 1), NOW);
+        assertThat(p.holderName()).isEqualTo("NEW HOLDER");
+        assertThat(p.productCode()).isEqualTo("AVIATION");
+        assertThat(p.effectiveDate()).isEqualTo(LocalDate.of(2026, 2, 1));
+        assertThat(p.status()).isEqualTo(PolicyStatus.DRAFT);
+    }
+
+    @Test
+    void update_is_rejected_once_past_draft() {
+        Policy p = draft();
+        p.submit(NOW);
+        assertThatThrownBy(() -> p.update("x", "y", LocalDate.of(2026, 1, 1), LocalDate.of(2027, 1, 1), NOW))
+                .isInstanceOf(IllegalPolicyTransitionException.class);
+    }
+
+    @Test
+    void update_revalidates_fields() {
+        assertThatThrownBy(() -> draft().update(" ", "p", LocalDate.of(2026, 1, 1), LocalDate.of(2027, 1, 1), NOW))
+                .isInstanceOf(InvalidPolicyException.class);
+        assertThatThrownBy(() -> draft().update("h", "p", LocalDate.of(2027, 1, 1), LocalDate.of(2026, 1, 1), NOW))
+                .isInstanceOf(InvalidPolicyException.class).hasMessageContaining("before");
+    }
+
     private Policy active() {
         Policy p = draft();
         p.submit(NOW);

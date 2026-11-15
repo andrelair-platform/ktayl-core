@@ -6,6 +6,7 @@ import com.ktayl.core.policy.domain.PolicyNotFoundException;
 import com.ktayl.core.policy.domain.PolicyRepository;
 import com.ktayl.core.policy.domain.PolicyStatus;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -58,6 +59,26 @@ public class PolicyService {
     @Transactional
     public Policy cancel(UUID id, String reason, String actor) {
         return transition(id, actor, "CANCEL", reason, (p, now) -> p.cancel(reason, now));
+    }
+
+    /**
+     * Update a DRAFT policy's mutable details (BF-POL-04). Audited (action UPDATE) so a pre-activation edit
+     * is traceable like a transition; the aggregate rejects the edit if the policy is past DRAFT (→409).
+     */
+    @Transactional
+    public Policy update(UUID id, UpdatePolicyCommand cmd, String actor) {
+        Policy policy = require(id);
+        PolicyStatus from = policy.status();
+        policy.update(cmd.holderName(), cmd.productCode(), cmd.effectiveDate(), cmd.expiryDate(), Instant.now());
+        policies.save(policy);
+        audit.record(policy.id(), "UPDATE", from, policy.status(), actor, null);
+        return policy;
+    }
+
+    /** Keyset page (BF-POL-04). {@code status} + {@code afterCreatedAt}/{@code afterId} (decoded cursor) are nullable. */
+    @Transactional(readOnly = true)
+    public List<Policy> list(PolicyStatus status, Instant afterCreatedAt, UUID afterId, int limit) {
+        return policies.list(status, afterCreatedAt, afterId, limit);
     }
 
     @Transactional(readOnly = true)
