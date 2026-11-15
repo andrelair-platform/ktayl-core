@@ -22,8 +22,11 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          # Authentik OIDC issuer (resource-server validates tokens against its JWKS)
-          issuer-uri: ${AUTHENTIK_ISSUER:https://auth.devandre.sbs/application/o/ktayl-core/}
+          # Validate by SIGNATURE against the shared Authentik JWKS (every provider here signs with the same
+          # key), then check iss against an ALLOWLIST (ktayl.security.trusted-issuers below). Replaces strict
+          # issuer-uri, which rejected M2M tokens minted by a different provider (ADR-016). Lazy: no eager
+          # discovery at startup. Split-horizon host → 10.0.0.200; the minicloud CA is baked into the image.
+          jwk-set-uri: ${AUTHENTIK_JWKS_URI:https://auth.devandre.sbs/application/o/ktayl-core/jwks/}
 
 management:
   endpoints:
@@ -53,6 +56,14 @@ logging:
 
 server:
   port: 8080
+
+# Multi-issuer allowlist (ADR-016): the EXACT iss strings ktayl-core trusts, comma-separated. Includes
+# ktayl-core's own (human SSO, external host) + each M2M consumer's issuer (internal-host form, trailing
+# slash — what an in-cluster client-credentials token carries). A new M2M consumer = add its iss to
+# AUTHENTIK_TRUSTED_ISSUERS (no code change). Defaults cover dev: ktayl-core SSO + underwriting's bind client.
+ktayl:
+  security:
+    trusted-issuers: ${AUTHENTIK_TRUSTED_ISSUERS:https://auth.devandre.sbs/application/o/ktayl-core/,http://authentik-server.authentik.svc:80/application/o/ktayl-underwriting/}
 
 # Billing ingest (ADR-003): durable JetStream consumer of the UW bound-risk event.
 # PROD sets billing.nats.url (authoritative consumer); dev leaves it BLANK → consumer disabled
