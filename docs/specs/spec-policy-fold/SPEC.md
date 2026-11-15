@@ -64,17 +64,40 @@ preserved), and writes **one BACKFILL audit row per policy** (DORA Art.9, idempo
   duplicate create returns `409` → the dev split-brain is gone, the 409-resolve bind path is consistent.
 - **Phase 4 prod:** point the env at the prod source/target (the Go PAS prod is on CNPG `ktayl-cnpg`) — same tool.
 
-### Phase 3 — repoint underwriting
-Flip `policy_service_url` → the ktayl-core policy endpoint. Align the write-authz (underwriting's bind token
-→ a `policy:write` / group authority ktayl-core accepts). Underwriting stays a separate Python service — only
-its target changes. **Verify:** a UW bind flows create→submit→activate into ktayl-core, policy ACTIVE + audited.
+### Phase 3 — repoint underwriting (dev) ✅
+`POLICY_SERVICE_URL` → ktayl-core; auth via the multi-issuer allowlist (ADR-016). Verified: a UW bind flows
+create→submit→activate into ktayl-core, policy ACTIVE + audited. Underwriting stays a separate Python service.
 
-### Phase 4 — soak + Phase-6 acceptance gate
-Parity (policy counts/states match the Go PAS), no data loss, the live QA gate, SLO check.
+### Phase 4 — prod cutover ✅
+Promote ktayl-core→prod (Kargo CODEOWNERS PR) + QA gate (L5, found+fixed the oversized-input 500) + backfill
+prod + **soak** + repoint prod underwriting. Verified: a real prod bind lands in ktayl-core-prod (201/204/204/200,
+ACTIVE + DORA audit). The Go PAS prod stays running (idle) = the rollback path.
 
-### Phase 5 — retire the Go policy-service
-Only after the gate passes (non-destruction freeze, ADR-004): delete the ArgoCD app + the repo; this SPEC +
-ADR-015 remain the design of record.
+### Phase 5 — retire the Go policy-service (GATED — non-destructive until ALL criteria pass, ADR-004)
+> ⚠️ **Do NOT delete anything until the acceptance gate below is fully green.** The Go PAS is the rollback
+> path; retirement is a one-way action. Minimum **prod soak ≥ 1 week** of ktayl-core-prod serving the live
+> bind path before this gate is even evaluated.
+
+**Phase-6 acceptance gate (every box must be ✅ before any deletion):**
+- [ ] Prod soak ≥ 1 week: ktayl-core-prod policy module healthy (no crashloops/restarts, SLO met), the live
+      QA gate re-run clean, prod complaints + billing SSO unaffected.
+- [ ] **Parity**: `policy.policy` row count/states in ktayl-core-prod ≥ the Go PAS prod `policies` (no data loss);
+      every Go-PAS policy_number resolvable via the ktayl-core API.
+- [ ] Zero prod traffic still hitting the Go PAS (confirm no callers remain — grep every `POLICY_SERVICE_URL`;
+      underwriting-prod repointed; no other consumer).
+- [ ] A final backfill re-run (`backfill-policies.sh apply`, idempotent) to catch any policies the Go PAS
+      created during the soak window.
+
+**Retirement runbook (only once the gate is green):**
+1. `kubectl --context minicloud -n ktayl-prod scale deploy/ktayl-policy-service --replicas=0` (quiesce; keep the
+   manifests a few days as a fast un-retire).
+2. Remove the Go PAS ArgoCD app(s) + Kargo project + its `services/ktayl-policy-service/` from `minicloud-gitops`
+   (CODEOWNERS PR) → ArgoCD prunes the deployment, svc, ingress, CNPG app (keep the CNPG **backup** until the repo
+   is archived).
+3. Archive (don't hard-delete) `andrelair-platform/ktayl-policy-service`; retire board #6 scope into #28.
+4. Drop the dev `ktayl-postgres` STS + prod `ktayl-cnpg` policy DB **last**, after a final snapshot.
+
+This SPEC + ADR-015 remain the design of record after the repo is gone.
 
 ## Out of scope / deliberate
 Premium accounting (ERPNext + billing) · multi-tenant · PDF digital signature (Docuseal, later) · the
