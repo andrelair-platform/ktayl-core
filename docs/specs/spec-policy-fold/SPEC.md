@@ -52,9 +52,17 @@ do **not** call the PAS. ⇒ repoint = one base-URL change (`policy_service_url`
   lifecycle events (in-process + the external `policy.activated` via the ktayl-core transactional-outbox).
   All **need-first** — built when a consumer exists (attestation is cert-valuable even dormant).
 
-### Phase 2 — backfill
-One-off job: copy the existing policies (+ coverages/documents) from the Go PAS DB into the `policy` schema.
-Binds are idempotent by `policy_number`, so a clean cutover works; dual-write is optional.
+### Phase 2 — backfill ✅ (done on dev; the tool Phase 4 reuses for prod)
+One-off, idempotent copy of the existing PAS policies into the `policy` schema — tool:
+**`scripts/backfill-policies.sh <dry-run|apply>`** (runs on the controller; source/target overridable by env).
+It EXPORTs+TRANSFORMs in the source pod (status → the ktayl-core enum via a CASE map, an unknown status → a
+loud failure not a silent mismap; dates TIMESTAMPTZ→DATE; **coverages/premiums NOT carried** — orphan/billing),
+IMPORTs via a TEMP-table `\copy` + `INSERT … ON CONFLICT (policy_number) DO NOTHING` (idempotent, IDs+timestamps
+preserved), and writes **one BACKFILL audit row per policy** (DORA Art.9, idempotent).
+- **Dev run (2026-11-15):** 9 PAS policies (7 active / 1 cancelled / 1 draft) → all mapped + inserted; re-run
+  = `INSERT 0 0`; a backfilled policy (`UW-369188ABE405`) now resolves `200 ACTIVE` via the API and a
+  duplicate create returns `409` → the dev split-brain is gone, the 409-resolve bind path is consistent.
+- **Phase 4 prod:** point the env at the prod source/target (the Go PAS prod is on CNPG `ktayl-cnpg`) — same tool.
 
 ### Phase 3 — repoint underwriting
 Flip `policy_service_url` → the ktayl-core policy endpoint. Align the write-authz (underwriting's bind token
