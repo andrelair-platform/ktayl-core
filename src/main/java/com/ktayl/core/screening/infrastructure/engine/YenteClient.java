@@ -1,5 +1,7 @@
 package com.ktayl.core.screening.infrastructure.engine;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ktayl.core.screening.domain.Bucket;
 import com.ktayl.core.screening.domain.Hit;
 import com.ktayl.core.screening.domain.Party;
@@ -37,6 +39,7 @@ public class YenteClient implements ScreeningEngine {
 
     private final RestClient http;
     private final double threshold;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     public YenteClient(
             @Value("${screening.yente.base-url:http://yente.yente.svc:8000}") String baseUrl,
@@ -64,8 +67,12 @@ public class YenteClient implements ScreeningEngine {
             Map<String, Object> query = Map.of("schema", "Person", "properties", props);
             Map<String, Object> body = Map.of("queries", Map.of("q", query));
 
+            // Serialize to a String so RestClient sends a Content-Length — yente's uvicorn/h11 REJECTS a
+            // chunked (no-length) POST body with "Invalid HTTP request received" / "body required" (proven
+            // live: the identical body via curl works, via RestClient.body(Map) streamed chunked did not).
+            String json = mapper.writeValueAsString(body);
             Map<?, ?> resp = http.post().uri("/match/default")
-                    .contentType(MediaType.APPLICATION_JSON).body(body)
+                    .contentType(MediaType.APPLICATION_JSON).body(json)
                     .retrieve().body(Map.class);
 
             List<Hit> hits = parseHits(resp);
@@ -73,8 +80,8 @@ public class YenteClient implements ScreeningEngine {
             return new ScreeningResult(datasetVersion, hits);
         } catch (ScreeningEngineUnavailableException e) {
             throw e;
-        } catch (RuntimeException e) {
-            // Fail-closed: never silent-ALLOW. Any transport/HTTP/parse error → HOLD upstream.
+        } catch (JsonProcessingException | RuntimeException e) {
+            // Fail-closed: never silent-ALLOW. Any transport/HTTP/serialize/parse error → HOLD upstream.
             throw new ScreeningEngineUnavailableException("yente match failed: " + e.getMessage(), e);
         }
     }
