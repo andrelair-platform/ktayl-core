@@ -1,9 +1,11 @@
 package com.ktayl.core.policy.infrastructure.web;
 
+import com.ktayl.core.policy.application.BindScreeningHoldException;
 import com.ktayl.core.policy.domain.IllegalPolicyTransitionException;
 import com.ktayl.core.policy.domain.InvalidPolicyException;
 import com.ktayl.core.policy.domain.PolicyAlreadyExistsException;
 import com.ktayl.core.policy.domain.PolicyNotFoundException;
+import java.util.HashMap;
 import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -28,6 +30,21 @@ public class PolicyExceptionHandler {
     @ExceptionHandler(IllegalPolicyTransitionException.class)
     public ResponseEntity<Map<String, Object>> illegalTransition(IllegalPolicyTransitionException e) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("status", 409, "detail", e.getMessage()));
+    }
+
+    /**
+     * Sanctions/AML HOLD at bind (RC-02 S2) → 409: the bind is blocked pending a human compliance decision.
+     * The body carries the gate + the alert id (null on a fail-closed engine outage) so the caller can link
+     * to the review. Uses a {@link HashMap} because {@code alertId} may be null and {@code Map.of} rejects it.
+     */
+    @ExceptionHandler(BindScreeningHoldException.class)
+    public ResponseEntity<Map<String, Object>> screeningHold(BindScreeningHoldException e) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("status", 409);
+        body.put("gate", e.gate());
+        body.put("alertId", e.alertId());
+        body.put("detail", "held pending sanctions review");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
     @ExceptionHandler(InvalidPolicyException.class)
