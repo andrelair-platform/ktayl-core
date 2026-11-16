@@ -2,22 +2,27 @@
 
 ## Tables
 
-| Name                                                    | Columns | Comment | Type       |
-| ------------------------------------------------------- | ------- | ------- | ---------- |
-| [billing.audit_log](billing.audit_log.md)               | 7       |         | BASE TABLE |
-| [billing.dunning_case](billing.dunning_case.md)         | 8       |         | BASE TABLE |
-| [billing.ingested_policy](billing.ingested_policy.md)   | 10      |         | BASE TABLE |
-| [billing.installment](billing.installment.md)           | 7       |         | BASE TABLE |
-| [billing.invoice](billing.invoice.md)                   | 6       |         | BASE TABLE |
-| [billing.ledger_outbox](billing.ledger_outbox.md)       | 11      |         | BASE TABLE |
-| [billing.payment](billing.payment.md)                   | 9       |         | BASE TABLE |
-| [billing.schema_marker](billing.schema_marker.md)       | 2       |         | BASE TABLE |
-| [billing.webhook_event](billing.webhook_event.md)       | 4       |         | BASE TABLE |
-| [complaints.audit_log](complaints.audit_log.md)         | 7       |         | BASE TABLE |
-| [complaints.complaint](complaints.complaint.md)         | 10      |         | BASE TABLE |
-| [complaints.schema_marker](complaints.schema_marker.md) | 2       |         | BASE TABLE |
-| [policy.policy](policy.policy.md)                       | 9       |         | BASE TABLE |
-| [policy.policy_audit_log](policy.policy_audit_log.md)   | 8       |         | BASE TABLE |
+| Name                                                      | Columns | Comment | Type       |
+| --------------------------------------------------------- | ------- | ------- | ---------- |
+| [billing.audit_log](billing.audit_log.md)                 | 7       |         | BASE TABLE |
+| [billing.dunning_case](billing.dunning_case.md)           | 8       |         | BASE TABLE |
+| [billing.ingested_policy](billing.ingested_policy.md)     | 10      |         | BASE TABLE |
+| [billing.installment](billing.installment.md)             | 7       |         | BASE TABLE |
+| [billing.invoice](billing.invoice.md)                     | 6       |         | BASE TABLE |
+| [billing.ledger_outbox](billing.ledger_outbox.md)         | 11      |         | BASE TABLE |
+| [billing.payment](billing.payment.md)                     | 9       |         | BASE TABLE |
+| [billing.schema_marker](billing.schema_marker.md)         | 2       |         | BASE TABLE |
+| [billing.webhook_event](billing.webhook_event.md)         | 4       |         | BASE TABLE |
+| [complaints.audit_log](complaints.audit_log.md)           | 7       |         | BASE TABLE |
+| [complaints.complaint](complaints.complaint.md)           | 10      |         | BASE TABLE |
+| [complaints.schema_marker](complaints.schema_marker.md)   | 2       |         | BASE TABLE |
+| [policy.policy](policy.policy.md)                         | 9       |         | BASE TABLE |
+| [policy.policy_audit_log](policy.policy_audit_log.md)     | 8       |         | BASE TABLE |
+| [screening.alert](screening.alert.md)                     | 5       |         | BASE TABLE |
+| [screening.party](screening.party.md)                     | 9       |         | BASE TABLE |
+| [screening.screening](screening.screening.md)             | 6       |         | BASE TABLE |
+| [screening.screening_audit](screening.screening_audit.md) | 7       |         | BASE TABLE |
+| [screening.screening_case](screening.screening_case.md)   | 8       |         | BASE TABLE |
 
 ## Relations
 
@@ -29,6 +34,9 @@ erDiagram
 "billing.invoice" |o--|| "billing.ingested_policy" : "FOREIGN KEY (policy_number) REFERENCES ingested_policy(policy_number)"
 "billing.payment" }o--|| "billing.installment" : "FOREIGN KEY (installment_id) REFERENCES installment(id)"
 "policy.policy_audit_log" }o--|| "policy.policy" : "FOREIGN KEY (policy_id) REFERENCES policy.policy(id)"
+"screening.alert" }o--|| "screening.screening" : "FOREIGN KEY (screening_id) REFERENCES screening.screening(id)"
+"screening.screening" }o--|| "screening.party" : "FOREIGN KEY (party_id) REFERENCES screening.party(id)"
+"screening.screening_case" |o--|| "screening.alert" : "FOREIGN KEY (alert_id) REFERENCES screening.alert(id)"
 
 "billing.audit_log" {
   varchar_32_ action
@@ -157,6 +165,51 @@ erDiagram
   uuid policy_id FK
   varchar_256_ reason
   varchar_16_ to_status
+}
+"screening.alert" {
+  varchar_16_ bucket
+  uuid id
+  text matched_entry
+  integer score
+  uuid screening_id FK
+}
+"screening.party" {
+  timestamp_with_time_zone created_at
+  date dob
+  text external_ref
+  uuid id
+  text ids
+  text name
+  text nationality
+  text residence
+  text ubo_of
+}
+"screening.screening" {
+  timestamp_with_time_zone at
+  varchar_64_ dataset_version
+  varchar_32_ gate
+  uuid id
+  uuid party_id FK
+  varchar_8_ verdict
+}
+"screening.screening_audit" {
+  varchar_32_ action
+  varchar_128_ actor_id
+  timestamp_with_time_zone at
+  varchar_64_ dataset_version
+  text detail
+  bigint id
+  uuid party_id
+}
+"screening.screening_case" {
+  varchar_128_ actor_id
+  uuid alert_id FK
+  timestamp_with_time_zone decided_at
+  uuid id
+  varchar_512_ rationale
+  varchar_8_ risk
+  varchar_8_ status
+  varchar_8_ vigilance
 }
 ```
 

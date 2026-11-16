@@ -110,3 +110,11 @@ ledger:
 # NOT the ACPR/EIOPA/IDD statutory deadline). ISO-8601 duration; acknowledge() sets due = now + this.
 complaints:
   acknowledgement-window: ${COMPLAINTS_ACK_WINDOW:P2D}
+
+# Screening (RC-02, AML / sanctions, LCB-FT). The engine is yente over OpenSanctions sanctions lists
+# (ktayl-compliance #15 ADOPT decision). base-url defaults to the in-cluster yente service; match-threshold
+# is the minimum provider score (0..1) kept as a hit. An engine outage fails CLOSED → HOLD (never ALLOW).
+screening:
+  yente:
+    base-url: ${SCREENING_YENTE_BASE_URL:http://yente.yente.svc:8000}
+  match-threshold: ${SCREENING_MATCH_THRESHOLD:0.70}

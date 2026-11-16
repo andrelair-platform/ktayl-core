@@ -1252,6 +1252,455 @@
           ]
         }
       ]
+    },
+    {
+      "name": "screening.alert",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "bucket",
+          "type": "varchar(16)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "matched_entry",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "score",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "screening_id",
+          "type": "uuid",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "alert_pkey",
+          "def": "CREATE UNIQUE INDEX alert_pkey ON screening.alert USING btree (id)",
+          "table": "screening.alert",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_alert_screening",
+          "def": "CREATE INDEX idx_alert_screening ON screening.alert USING btree (screening_id)",
+          "table": "screening.alert",
+          "columns": [
+            "screening_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "alert_bucket_check",
+          "type": "CHECK",
+          "def": "CHECK (((bucket)::text = ANY ((ARRAY['SANCTION'::character varying, 'PEP'::character varying, 'AME'::character varying, 'RISK_COUNTRY'::character varying, 'UBO'::character varying, 'ORIAS'::character varying])::text[])))",
+          "table": "screening.alert",
+          "referenced_table": "",
+          "columns": [
+            "bucket"
+          ]
+        },
+        {
+          "name": "alert_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "screening.alert",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "alert_screening_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (screening_id) REFERENCES screening.screening(id)",
+          "table": "screening.alert",
+          "referenced_table": "screening.screening",
+          "columns": [
+            "screening_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "screening.party",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "dob",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "external_ref",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "ids",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "nationality",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "residence",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "ubo_of",
+          "type": "text",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "party_pkey",
+          "def": "CREATE UNIQUE INDEX party_pkey ON screening.party USING btree (id)",
+          "table": "screening.party",
+          "columns": [
+            "id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "party_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "screening.party",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "screening.screening",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "dataset_version",
+          "type": "varchar(64)",
+          "nullable": true
+        },
+        {
+          "name": "gate",
+          "type": "varchar(32)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "party_id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "verdict",
+          "type": "varchar(8)",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_screening_party",
+          "def": "CREATE INDEX idx_screening_party ON screening.screening USING btree (party_id)",
+          "table": "screening.screening",
+          "columns": [
+            "party_id"
+          ]
+        },
+        {
+          "name": "screening_pkey",
+          "def": "CREATE UNIQUE INDEX screening_pkey ON screening.screening USING btree (id)",
+          "table": "screening.screening",
+          "columns": [
+            "id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "screening_party_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (party_id) REFERENCES screening.party(id)",
+          "table": "screening.screening",
+          "referenced_table": "screening.party",
+          "columns": [
+            "party_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "screening_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "screening.screening",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "screening_verdict_check",
+          "type": "CHECK",
+          "def": "CHECK (((verdict)::text = ANY ((ARRAY['ALLOW'::character varying, 'HOLD'::character varying])::text[])))",
+          "table": "screening.screening",
+          "referenced_table": "",
+          "columns": [
+            "verdict"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "screening.screening_audit",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "action",
+          "type": "varchar(32)",
+          "nullable": false
+        },
+        {
+          "name": "actor_id",
+          "type": "varchar(128)",
+          "nullable": false
+        },
+        {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "dataset_version",
+          "type": "varchar(64)",
+          "nullable": true
+        },
+        {
+          "name": "detail",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "party_id",
+          "type": "uuid",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_screening_audit_party",
+          "def": "CREATE INDEX idx_screening_audit_party ON screening.screening_audit USING btree (party_id)",
+          "table": "screening.screening_audit",
+          "columns": [
+            "party_id"
+          ]
+        },
+        {
+          "name": "screening_audit_pkey",
+          "def": "CREATE UNIQUE INDEX screening_audit_pkey ON screening.screening_audit USING btree (id)",
+          "table": "screening.screening_audit",
+          "columns": [
+            "id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "screening_audit_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "screening.screening_audit",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "screening.screening_case",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "actor_id",
+          "type": "varchar(128)",
+          "nullable": true
+        },
+        {
+          "name": "alert_id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "rationale",
+          "type": "varchar(512)",
+          "nullable": true
+        },
+        {
+          "name": "risk",
+          "type": "varchar(8)",
+          "nullable": true
+        },
+        {
+          "name": "status",
+          "type": "varchar(8)",
+          "nullable": false
+        },
+        {
+          "name": "vigilance",
+          "type": "varchar(8)",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "screening_case_alert_id_key",
+          "def": "CREATE UNIQUE INDEX screening_case_alert_id_key ON screening.screening_case USING btree (alert_id)",
+          "table": "screening.screening_case",
+          "columns": [
+            "alert_id"
+          ]
+        },
+        {
+          "name": "screening_case_pkey",
+          "def": "CREATE UNIQUE INDEX screening_case_pkey ON screening.screening_case USING btree (id)",
+          "table": "screening.screening_case",
+          "columns": [
+            "id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "screening_case_alert_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (alert_id) REFERENCES screening.alert(id)",
+          "table": "screening.screening_case",
+          "referenced_table": "screening.alert",
+          "columns": [
+            "alert_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "screening_case_alert_id_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (alert_id)",
+          "table": "screening.screening_case",
+          "referenced_table": "",
+          "columns": [
+            "alert_id"
+          ]
+        },
+        {
+          "name": "screening_case_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "screening.screening_case",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "screening_case_risk_check",
+          "type": "CHECK",
+          "def": "CHECK (((risk)::text = ANY ((ARRAY['WEAK'::character varying, 'MED'::character varying, 'STRONG'::character varying])::text[])))",
+          "table": "screening.screening_case",
+          "referenced_table": "",
+          "columns": [
+            "risk"
+          ]
+        },
+        {
+          "name": "screening_case_status_check",
+          "type": "CHECK",
+          "def": "CHECK (((status)::text = ANY ((ARRAY['ACC'::character varying, 'REF'::character varying, 'PENDING'::character varying])::text[])))",
+          "table": "screening.screening_case",
+          "referenced_table": "",
+          "columns": [
+            "status"
+          ]
+        },
+        {
+          "name": "screening_case_vigilance_check",
+          "type": "CHECK",
+          "def": "CHECK (((vigilance)::text = ANY ((ARRAY['NORMAL'::character varying, 'ENHANCED'::character varying])::text[])))",
+          "table": "screening.screening_case",
+          "referenced_table": "",
+          "columns": [
+            "vigilance"
+          ]
+        }
+      ]
     }
   ],
   "relations": [
@@ -1319,6 +1768,45 @@
       ],
       "parent_cardinality": "exactly_one",
       "def": "FOREIGN KEY (policy_id) REFERENCES policy.policy(id)"
+    },
+    {
+      "table": "screening.alert",
+      "columns": [
+        "screening_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "screening.screening",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (screening_id) REFERENCES screening.screening(id)"
+    },
+    {
+      "table": "screening.screening",
+      "columns": [
+        "party_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "screening.party",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (party_id) REFERENCES screening.party(id)"
+    },
+    {
+      "table": "screening.screening_case",
+      "columns": [
+        "alert_id"
+      ],
+      "cardinality": "zero_or_one",
+      "parent_table": "screening.alert",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (alert_id) REFERENCES screening.alert(id)"
     }
   ],
   "driver": {
