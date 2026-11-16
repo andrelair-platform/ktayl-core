@@ -14,7 +14,6 @@ permissions:
   contents: read
 
 env:
-  REGISTRY: harbor.10.0.0.200.nip.io          # dev images
   GHCR_ORG: ghcr.io/andrelair-platform           # prod images (public, durable, off local disk)
   IMAGE: ktayl-core
 
@@ -153,31 +152,9 @@ jobs:
         id: meta
         run: |
           SHA=$(git rev-parse --short HEAD)
-          HARBOR_REF="${REGISTRY}/library/${IMAGE}:${SHA}"
           GHCR_REF="${GHCR_ORG}/${IMAGE}:${SHA}"
-          { echo "tags<<EOF"; echo "${HARBOR_REF}"; echo "${GHCR_REF}"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+          { echo "tags<<EOF"; echo "${GHCR_REF}"; echo "EOF"; } >> "$GITHUB_OUTPUT"
           echo "ghcr_ref=${GHCR_REF}" >> "$GITHUB_OUTPUT"
-
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v4.1.3
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
-
-      - name: Trust minicloud CA (for the Harbor registry push)
-        run: |
-          sudo mkdir -p /etc/docker/certs.d/${REGISTRY}
-          echo "${{ secrets.MINICLOUD_CA_CERT }}" | sudo tee /etc/docker/certs.d/${REGISTRY}/ca.crt
-          echo "${{ secrets.MINICLOUD_CA_CERT }}" | sudo tee /usr/local/share/ca-certificates/minicloud-ca.crt
-          sudo update-ca-certificates
-
-      - name: Login to Harbor
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.HARBOR_USER }}
-          password: ${{ secrets.HARBOR_PASSWORD }}
 
       - name: Login to GHCR
         uses: docker/login-action@v4
@@ -187,10 +164,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/setup-buildx-action@v4
-        with:
-          buildkitd-config-inline: |
-            [registry."harbor.10.0.0.200.nip.io"]
-              insecure = true
 
       # ktayl-core does NOT bake the minicloud CA: it calls PAS/ERPNext over in-cluster HTTP and
       # The OIDC issuer (auth.devandre.sbs) resolves internally (split-horizon) to the minicloud-CA
