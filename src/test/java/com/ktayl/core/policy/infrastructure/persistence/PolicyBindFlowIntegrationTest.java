@@ -8,13 +8,17 @@ import com.ktayl.core.policy.application.PolicyService;
 import com.ktayl.core.policy.domain.Policy;
 import com.ktayl.core.policy.domain.PolicyAlreadyExistsException;
 import com.ktayl.core.policy.domain.PolicyStatus;
+import com.ktayl.core.screening.api.ScreeningGate;
+import com.ktayl.core.screening.api.ScreeningOutcome;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -31,8 +35,21 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
-@Import({PolicyService.class, PolicyPersistenceAdapter.class, PolicyAuditAdapter.class})
+@Import({PolicyService.class, PolicyPersistenceAdapter.class, PolicyAuditAdapter.class,
+        PolicyBindFlowIntegrationTest.StubScreeningGate.class})
 class PolicyBindFlowIntegrationTest {
+
+    /**
+     * The bind now screens through {@link ScreeningGate} (RC-02 S2); this slice test isn't about the gate,
+     * so stub an ALLOW so the bind flow proceeds (the HOLD path is covered by {@code PolicyServiceTest}).
+     */
+    @TestConfiguration
+    static class StubScreeningGate {
+        @Bean
+        ScreeningGate screeningGate() {
+            return (party, gate, actor) -> new ScreeningOutcome("ALLOW", null, "test");
+        }
+    }
 
     @Container
     @ServiceConnection

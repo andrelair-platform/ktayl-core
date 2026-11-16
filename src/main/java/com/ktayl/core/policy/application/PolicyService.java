@@ -5,6 +5,9 @@ import com.ktayl.core.policy.domain.PolicyAlreadyExistsException;
 import com.ktayl.core.policy.domain.PolicyNotFoundException;
 import com.ktayl.core.policy.domain.PolicyRepository;
 import com.ktayl.core.policy.domain.PolicyStatus;
+import com.ktayl.core.screening.api.PartyRef;
+import com.ktayl.core.screening.api.ScreeningGate;
+import com.ktayl.core.screening.api.ScreeningOutcome;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -22,12 +25,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class PolicyService {
 
+    /** The bind gate marker threaded to the screening engine for audit attribution (RC-02 S2). */
+    private static final String BIND_GATE = "bind";
+
     private final PolicyRepository policies;
     private final PolicyAuditLog audit;
+    private final ScreeningGate screening;
 
-    public PolicyService(PolicyRepository policies, PolicyAuditLog audit) {
+    public PolicyService(PolicyRepository policies, PolicyAuditLog audit, ScreeningGate screening) {
         this.policies = policies;
         this.audit = audit;
+        this.screening = screening;
     }
 
     /**
@@ -51,8 +59,20 @@ public class PolicyService {
         return transition(id, actor, "SUBMIT", null, Policy::submit);
     }
 
+    /**
+     * SUBMITTED → ACTIVE (the bind), gated by sanctions/AML screening (RC-02 S2). The holder is screened at
+     * the {@code bind} gate BEFORE the transition; a {@code HOLD} verdict (match OR a fail-closed engine
+     * outage) blocks the bind — {@link BindScreeningHoldException} is thrown and the policy stays SUBMITTED,
+     * unsaved, with an auditable alert for the compliance officer. Only an ALLOW proceeds to activate + save.
+     */
     @Transactional
     public Policy activate(UUID id, String actor) {
+        Policy policy = require(id);
+        ScreeningOutcome outcome = screening.screen(
+                new PartyRef(policy.policyNumber(), policy.holderName(), null, null, null), BIND_GATE, actor);
+        if ("HOLD".equals(outcome.verdict())) {
+            throw new BindScreeningHoldException(policy.id(), outcome.alertId(), BIND_GATE);
+        }
         return transition(id, actor, "ACTIVATE", null, Policy::activate);
     }
 

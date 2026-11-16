@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.ktayl.core.policy.application.BindScreeningHoldException;
 import com.ktayl.core.policy.application.PolicyService;
 import com.ktayl.core.policy.domain.IllegalPolicyTransitionException;
 import com.ktayl.core.policy.domain.InvalidPolicyException;
@@ -184,6 +185,18 @@ class PolicyApiContractTest {
         when(policies.activate(eq(ID), any()))
                 .thenThrow(new IllegalPolicyTransitionException("cannot activate a DRAFT policy"));
         mvc.perform(post("/v1/policies/{id}/activate", ID).with(svc())).andExpect(status().isConflict());
+    }
+
+    @Test
+    void a_sanctions_hold_at_bind_is_409_with_gate_and_alert() throws Exception {
+        java.util.UUID alert = java.util.UUID.randomUUID();
+        when(policies.activate(eq(ID), any()))
+                .thenThrow(new BindScreeningHoldException(ID, alert, "bind"));
+        mvc.perform(post("/v1/policies/{id}/activate", ID).with(svc()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.gate").value("bind"))
+                .andExpect(jsonPath("$.alertId").value(alert.toString()))
+                .andExpect(jsonPath("$.detail").value("held pending sanctions review"));
     }
 
     @Test
