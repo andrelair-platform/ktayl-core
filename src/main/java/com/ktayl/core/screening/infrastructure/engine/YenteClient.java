@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -43,7 +44,12 @@ public class YenteClient implements ScreeningEngine {
     public YenteClient(
             @Value("${screening.yente.base-url:http://yente.yente.svc:8000}") String baseUrl,
             @Value("${screening.match-threshold:0.70}") double threshold) {
-        this.http = RestClient.builder().baseUrl(baseUrl).build();
+        // SimpleClientHttpRequestFactory = plain HttpURLConnection → HTTP/1.1 + Content-Length, NO h2c
+        // upgrade. The default (JDK HttpClient) defaults to HTTP/2 and sends an h2c Upgrade on cleartext
+        // http:// — nginx ignores it, but yente's uvicorn/h11 rejects it ("Invalid HTTP request received")
+        // and drops the body (422 "body required"). Proven live. yente is HTTP/1.1-only, so force 1.1.
+        this.http = RestClient.builder().requestFactory(new SimpleClientHttpRequestFactory())
+                .baseUrl(baseUrl).build();
         this.threshold = threshold;
     }
 
