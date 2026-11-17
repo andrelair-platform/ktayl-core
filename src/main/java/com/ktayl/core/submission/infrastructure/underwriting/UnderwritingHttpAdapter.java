@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -20,10 +21,12 @@ import org.springframework.web.client.RestClient;
  * {@link UnderwritingSubmissionRequest} to underwriting's snake_case wire contract
  * ({@code POST /v1/submissions} → {@code 201 {"id": "<uuid>", ...}}) and returns the created UW submission id.
  *
- * <p><b>DEV auth is OFF</b> — the call is UNAUTHENTICATED (no {@code Authorization} header). The prod
- * increment adds an OAuth2 client-credentials bearer token (see {@code TODO(SUB-02-prod)} below + the
- * commented {@code underwriting.oauth2} block in application.yml); the M2M pattern is the same the underwriting
- * BFF uses to call ktayl-core (ADR-016), so wiring it is a config + token-provider change, not a contract one.
+ * <p><b>Conditional auth (SUB-02 prod).</b> When OAuth2 is configured ({@code underwriting.oauth2.client-id}
+ * set — prod, where underwriting's API auth is ON), the {@link UnderwritingTokenProvider} mints a
+ * client-credentials token scoped {@code underwriting:write} and this adapter attaches it as a
+ * {@code Bearer} header. When it is NOT configured (dev: no client-id) the provider yields no token and the
+ * call stays UNAUTHENTICATED. The M2M pattern is the same the underwriting BFF uses to call ktayl-core
+ * (ADR-016), so it is a config + token-provider change, not a contract one.
  *
  * <p><b>HTTP/1.1-safe, like {@code YenteClient}:</b> uses {@link SimpleClientHttpRequestFactory} (plain
  * HttpURLConnection → HTTP/1.1 + Content-Length, NO h2c upgrade). The default JDK HttpClient defaults to
@@ -38,24 +41,33 @@ public class UnderwritingHttpAdapter implements UnderwritingPort {
     private static final Logger log = LoggerFactory.getLogger(UnderwritingHttpAdapter.class);
 
     private final RestClient http;
+    private final UnderwritingTokenProvider tokenProvider;
     private final ObjectMapper mapper = new ObjectMapper();
 
+    @Autowired
     public UnderwritingHttpAdapter(
-            @Value("${underwriting.base-url:http://underwriting.underwriting.svc:8080}") String baseUrl) {
-        this.http = RestClient.builder().requestFactory(new SimpleClientHttpRequestFactory())
-                .baseUrl(baseUrl).build();
+            @Value("${underwriting.base-url:http://underwriting.underwriting.svc:8080}") String baseUrl,
+            UnderwritingTokenProvider tokenProvider) {
+        this(RestClient.builder().requestFactory(new SimpleClientHttpRequestFactory()).baseUrl(baseUrl),
+                tokenProvider);
+    }
+
+    /** Package-private seam: lets a test bind a {@code MockRestServiceServer} to the underwriting endpoint. */
+    UnderwritingHttpAdapter(RestClient.Builder httpBuilder, UnderwritingTokenProvider tokenProvider) {
+        this.http = httpBuilder.build();
+        this.tokenProvider = tokenProvider;
     }
 
     @Override
     public String createSubmission(UnderwritingSubmissionRequest request) {
         try {
             String json = mapper.writeValueAsString(toWire(request));
-            // TODO(SUB-02-prod): attach the OAuth2 client-credentials bearer token here —
-            //   .headers(h -> h.setBearerAuth(tokenProvider.token())) — once underwriting's dev-OFF auth is
-            //   turned on in prod. The token provider mirrors the underwriting→ktayl-core M2M bind (ADR-016);
-            //   add the commented `underwriting.oauth2` block in application.yml. DEV calls unauthenticated.
+            // Attach the OAuth2 client-credentials bearer when underwriting auth is configured (prod); in dev
+            // the provider yields no token → the call stays unauthenticated (underwriting's dev auth is OFF).
             Map<?, ?> resp = http.post().uri("/v1/submissions")
-                    .contentType(MediaType.APPLICATION_JSON).body(json)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .headers(h -> tokenProvider.token().ifPresent(h::setBearerAuth))
+                    .body(json)
                     .retrieve().body(Map.class);
             String id = resp == null ? null : String.valueOf(resp.get("id"));
             if (id == null || id.isBlank() || "null".equals(id)) {
