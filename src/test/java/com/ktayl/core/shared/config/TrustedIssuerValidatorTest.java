@@ -12,7 +12,9 @@ import org.springframework.security.oauth2.jwt.Jwt;
 class TrustedIssuerValidatorTest {
 
     private static final String CORE = "https://auth.devandre.sbs/application/o/ktayl-core/";
-    private static final String UW = "http://authentik-server.authentik.svc:80/application/o/ktayl-underwriting/";
+    // The REAL in-cluster M2M token iss — NO `:80` (Authentik drops the default port from the request Host).
+    // A `:80` here was the 2026-11-17 bug: it failed the exact match against the real token → 401.
+    private static final String UW = "http://authentik-server.authentik.svc/application/o/ktayl-underwriting/";
 
     private final TrustedIssuerValidator validator = new TrustedIssuerValidator(Set.of(CORE, UW));
 
