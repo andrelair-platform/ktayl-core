@@ -1,13 +1,18 @@
 openapi: 3.0.3
 info:
-  title: ktayl-core — Billing API
+  title: ktayl-core — Billing & Policy API
   version: 0.1.0
   description: >
-    The Billing module of the ktayl-core insurance-LOB modular monolith (premium → cash → GL).
-    LIVE endpoints are implemented today (BILL-010); endpoints marked `x-status: planned` are the
-    contract-first surface for BILL-012–013 (contract tests implement against this). The bound-premium
-    INGEST is an event (NATS JetStream `insurance.underwriting.bound-risk`), not an endpoint — see
-    docs/architecture/adr/ADR-003.
+    The Billing (premium → cash → GL) and Policy (PAS bind-path, ADR-014) modules of the ktayl-core
+    insurance-LOB modular monolith. LIVE endpoints are implemented today; endpoints marked `x-status:
+    planned` are the contract-first surface for BILL-012–013 (contract tests implement against this). The
+    bound-premium INGEST is an event (NATS JetStream `insurance.underwriting.bound-risk`), not an endpoint —
+    see docs/architecture/adr/ADR-003. Billing/Policy are SSO-gated (Finance group on /api/billing/**; the
+    actor is taken from the token for audit). Sanctions/AML HOLDs (RC-02) surface as a 409 on the bind
+    (POST /v1/policies/{id}/activate) and on payment (POST /api/billing/payments) — see the ScreeningHold
+    schema. Screening and submission are separate per-module contracts (api/screening.openapi.yaml,
+    api/submission.openapi.yaml). Hand-maintained to match the billing + policy controllers and their
+    exception handlers; verified by the L3 contract test.
 servers:
   - url: https://iam-placeholder.invalid
     description: internal only (Tailscale + minicloud CA); host set per env at BILL-016
@@ -41,6 +46,63 @@ components:
               due_date: { type: string, format: date }
               amount_minor: { type: integer, format: int64 }
               status: { type: string, enum: [open, paid] }
+    ScreeningHold:
+      type: object
+      description: >
+        Sanctions/AML HOLD 409 body (RC-02) — returned by BindScreeningHoldException on
+        POST /v1/policies/{id}/activate and by PaymentScreeningHoldException on POST /api/billing/payments.
+        Carries the gate + alert id so the caller can link to the review.
+      properties:
+        status: { type: integer, example: 409 }
+        gate: { type: string, description: "The screening gate that held (e.g. bind, payment)" }
+        alertId: { type: string, format: uuid, nullable: true, description: null on a fail-closed engine outage }
+        detail: { type: string, example: held pending sanctions review }
+    PaymentView:
+      type: object
+      properties:
+        paymentId: { type: string, format: uuid }
+        installmentId: { type: string, format: uuid }
+        pspIntentId: { type: string, nullable: true }
+        amountMinor: { type: integer, format: int64 }
+        currency: { type: string, example: EUR }
+        status: { type: string, description: e.g. pending (flips to captured on the Stripe webhook) }
+    CreatePolicyRequest:
+      type: object
+      properties:
+        policy_number: { type: string }
+        holder_name: { type: string }
+        product_code: { type: string }
+        effective_date: { type: string, format: date }
+        expiry_date: { type: string, format: date }
+    UpdatePolicyRequest:
+      type: object
+      properties:
+        holder_name: { type: string }
+        product_code: { type: string }
+        effective_date: { type: string, format: date }
+        expiry_date: { type: string, format: date }
+    CancelRequest:
+      type: object
+      properties:
+        reason: { type: string, nullable: true }
+    PolicyResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        policy_number: { type: string }
+        holder_name: { type: string }
+        product_code: { type: string }
+        status: { type: string, enum: [DRAFT, SUBMITTED, ACTIVE, AMENDED, CANCELLED, EXPIRED] }
+        effective_date: { type: string, format: date }
+        expiry_date: { type: string, format: date }
+    ListPoliciesResponse:
+      description: 'The PAS list envelope, carried forward verbatim: {"items":[…],"next_cursor":…}.'
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PolicyResponse' }
+        next_cursor: { type: string, nullable: true }
 
 paths:
   /actuator/health:
@@ -99,10 +161,105 @@ paths:
         '409': { description: policy in a non-invoiceable state }
       x-status: live   # BILL-012
 
-  /api/billing/installments/{id}/pay:
+  /api/billing/payments:
     post:
       summary: Initiate a SEPA Direct Debit PaymentIntent (Stripe test) for an installment
-      description: Idempotent by client_key; over-payment / paid installment → 4xx (not 5xx). Async — returns pending; confirmation arrives on the webhook.
+      description: >
+        Initiate a payment for an installment. Eventually consistent — returns 202 `pending` immediately; the
+        installment flips to `paid` only on the verified Stripe webhook (BILL-013b). Idempotent by
+        `clientKey`. Over-payment / payment on a settled installment → 409 (rejected before the PSP). A
+        sanctions/AML HOLD (RC-02 S4) also → 409 with the ScreeningHold body (no money moves pending a human
+        compliance decision). PSP not configured / unreachable → 503 (retryable; nothing persisted).
+      security: [{ authentikOidc: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [installmentId]
+              properties:
+                installmentId: { type: string, format: uuid }
+                clientKey: { type: string, description: idempotency key }
+      responses:
+        '202':
+          description: payment intent created (pending)
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/PaymentView' } }
+        '400': { description: bad request (e.g. installment_id missing), content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { description: unauthenticated }
+        '403': { description: not in Finance group }
+        '404': { description: installment not found, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409':
+          description: >
+            Over-payment / settled installment, OR a sanctions HOLD. A sanctions hold returns the ScreeningHold
+            body (status + gate + alertId + detail "held pending sanctions review"); an over-payment returns
+            the plain {status, detail} body.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ScreeningHold'
+                  - $ref: '#/components/schemas/Problem'
+        '503': { description: PSP not configured / transiently unreachable, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+      x-status: live   # BILL-013a (POST /api/billing/payments; RC-02 S4 hold)
+
+  /v1/policies:
+    post:
+      summary: Create a DRAFT policy (PAS bind-path, ADR-014)
+      description: Create a DRAFT policy. 409 if the policy_number already exists (resolve via GET ?policy_number=).
+      security: [{ authentikOidc: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePolicyRequest' }
+      responses:
+        '201':
+          description: created
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/PolicyResponse' } }
+        '401': { description: unauthenticated }
+        '409': { description: policy_number already exists, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '422': { description: invalid policy, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+      x-status: live
+    get:
+      summary: List policies (keyset page) or resolve by policy_number
+      description: >
+        Always 200 with a `{"items":[…],"next_cursor":…}` envelope (never a bare object / 404). Two modes:
+        `?policy_number=` → the 409-resolve lookup (a 0/1-item list); otherwise a keyset page with optional
+        `?status=`, `?cursor=` (opaque) and `?limit=` (1–100, default 20). An invalid status or cursor → 400.
+      security: [{ authentikOidc: [] }]
+      parameters:
+        - { name: policy_number, in: query, required: false, schema: { type: string } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [DRAFT, SUBMITTED, ACTIVE, AMENDED, CANCELLED, EXPIRED] } }
+        - { name: cursor, in: query, required: false, schema: { type: string } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: a page of policies
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/ListPoliciesResponse' } }
+        '400': { description: invalid status / cursor, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { description: unauthenticated }
+      x-status: live
+
+  /v1/policies/{id}:
+    get:
+      summary: Get a policy
+      security: [{ authentikOidc: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/PolicyResponse' } }
+        '401': { description: unauthenticated }
+        '404': { description: unknown policy, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+      x-status: live
+    put:
+      summary: Update a DRAFT policy's details (BF-POL-04)
       security: [{ authentikOidc: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
@@ -110,16 +267,75 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [client_key]
-              properties:
-                client_key: { type: string, description: idempotency key }
+            schema: { $ref: '#/components/schemas/UpdatePolicyRequest' }
       responses:
-        '202': { description: payment intent created (pending) }
-        '400': { description: over-payment or bad request, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
-        '409': { description: installment already settled }
-      x-status: planned   # BILL-013a
+        '200':
+          description: updated
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/PolicyResponse' } }
+        '401': { description: unauthenticated }
+        '404': { description: unknown policy, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: policy is past DRAFT, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '422': { description: invalid policy, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+      x-status: live
+
+  /v1/policies/{id}/submit:
+    post:
+      summary: Submit a policy (DRAFT → SUBMITTED)
+      security: [{ authentikOidc: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: submitted }
+        '401': { description: unauthenticated }
+        '404': { description: unknown policy, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: illegal transition for the policy's current state, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+      x-status: live
+
+  /v1/policies/{id}/activate:
+    post:
+      summary: Activate a policy (SUBMITTED → ACTIVE) — the bind
+      description: >
+        Activates a submitted policy (the bind). 204 on success. Returns 409 for an illegal transition OR for
+        a sanctions/AML HOLD (RC-02 S2) — the bind is blocked pending a human compliance decision. The
+        sanctions-hold 409 body is the ScreeningHold shape (status + gate + alertId + detail "held pending
+        sanctions review").
+      security: [{ authentikOidc: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: activated }
+        '401': { description: unauthenticated }
+        '404': { description: unknown policy, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409':
+          description: >
+            Illegal transition, OR a sanctions HOLD. A sanctions hold returns the ScreeningHold body
+            (status + gate + alertId + detail); an illegal transition returns the plain {status, detail} body.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ScreeningHold'
+                  - $ref: '#/components/schemas/Problem'
+      x-status: live
+
+  /v1/policies/{id}/cancel:
+    post:
+      summary: Cancel a policy
+      security: [{ authentikOidc: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelRequest' }
+      responses:
+        '204': { description: cancelled }
+        '401': { description: unauthenticated }
+        '404': { description: unknown policy, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: illegal transition for the policy's current state, content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+      x-status: live
 
   /webhooks/stripe:
     post:

@@ -1,0 +1,283 @@
+openapi: 3.0.3
+info:
+  title: ktayl-core — Submission API
+  version: "0.1.0"
+  description: >
+    Submission intake module (SUB-01) of the ktayl-core modular monolith — the corporate front door. Captures
+    a broker submission (screening the insured at intake, RC-02), builds the exposure dossier, triages, and
+    routes onward to underwriting. State machine: RECEIVED → (triage ROUTE) → TRIAGED → (route) → ROUTED;
+    a triage DECLINE → DECLINED; a triage RETURN leaves the state unchanged. All endpoints require an
+    Authentik OIDC bearer token (401 without one) AND membership of the `Underwriting` group (authority
+    `GROUP_Underwriting`) — a token without it → 403. Clearing a sanctions hold is additionally gated to the
+    `Compliance` group (GROUP_Compliance) — HITL, only a compliance officer clears a hold. The acting
+    principal is taken from the token for audit attribution. snake_case request/response wire style.
+    Per-module contract (Billing's is api/openapi.yaml). Hand-maintained to match
+    com.ktayl.core.submission.infrastructure.web.SubmissionController + its SubmissionExceptionHandler;
+    verified by the L3 contract test.
+servers:
+  - url: https://ktayl-core.10.0.0.200.nip.io
+    description: dev (internal — Tailscale + minicloud CA; host finalised per env)
+security:
+  - bearerAuth: []
+paths:
+  /v1/submissions:
+    post:
+      summary: Capture a submission
+      description: >
+        Registers a new submission and screens the insured at intake (RC-02). 201 created with the new id +
+        a Location header. If the insured hits a sanctions/AML match the submission is captured but flagged
+        with a screening hold (see `screening_hold` on the submission view) — the hold is enforced at /route,
+        not at capture.
+      operationId: registerSubmission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        "201":
+          description: Registered
+          headers:
+            Location: { schema: { type: string }, description: URI of the new submission }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "422": { $ref: '#/components/responses/UnprocessableEntity' }
+    get:
+      summary: List submissions
+      description: >
+        Always 200 with a `{"items":[…],"next_cursor":…}` envelope. Optional `?status=`
+        (RECEIVED/TRIAGED/ROUTED/DECLINED) filter, plus `?cursor=` (opaque keyset cursor) and `?limit=`
+        (1–100, default 20). An invalid cursor → 400; an unknown status → 422. `next_cursor` is returned only
+        when a full page comes back.
+      operationId: listSubmissions
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [RECEIVED, TRIAGED, ROUTED, DECLINED] }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+          description: Opaque keyset cursor from a previous page's next_cursor.
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: A page of submissions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListSubmissionsResponse' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "422": { $ref: '#/components/responses/UnprocessableEntity' }
+  /v1/submissions/{id}/exposures:
+    post:
+      summary: Append an exposure to the dossier
+      description: Adds an exposure item (site/TIV/occupancy/loss-history/CAT) to the submission's dossier.
+      operationId: addExposure
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExposureRequest' }
+      responses:
+        "201":
+          description: Exposure added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+        "422": { $ref: '#/components/responses/UnprocessableEntity' }
+  /v1/submissions/{id}/triage:
+    post:
+      summary: Triage a submission
+      description: >
+        Applies a triage decision. `ROUTE` advances RECEIVED → TRIAGED (making it routable); `DECLINE`
+        moves it to DECLINED; `RETURN` leaves the state unchanged (sent back to the broker for more info).
+        204 on success.
+      operationId: triageSubmission
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TriageRequest' }
+      responses:
+        "204": { description: Triaged }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+        "409": { $ref: '#/components/responses/Conflict' }
+        "422": { $ref: '#/components/responses/UnprocessableEntity' }
+  /v1/submissions/{id}/route:
+    post:
+      summary: Route a triaged submission onward to underwriting
+      description: >
+        Advances a TRIAGED submission to ROUTED. 204 on success. Returns 409 in two cases: the submission is
+        not in the TRIAGED state (illegal transition), OR it is under a sanctions/AML screening HOLD (RC-02).
+        The sanctions-hold 409 body is distinguished by its `alertId` + `detail` ("routing blocked pending
+        sanctions review"): the submission MUST NOT be routed until a compliance officer clears the hold via
+        /clear-hold. The submission stays in its current state — nothing is routed.
+      operationId: routeSubmission
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RouteRequest' }
+      responses:
+        "204": { description: Routed }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+        "409":
+          description: >
+            Illegal transition (not TRIAGED), OR routing blocked by a sanctions HOLD. A sanctions hold returns
+            the ScreeningHold body (status + alertId + detail); an illegal transition returns the plain
+            {status, detail} body.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ScreeningHold'
+                  - $ref: '#/components/schemas/ProblemDetail'
+        "422": { $ref: '#/components/responses/UnprocessableEntity' }
+  /v1/submissions/{id}/clear-hold:
+    post:
+      summary: Clear a sanctions hold (Compliance only)
+      description: >
+        Clears a submission's sanctions/AML screening hold so it can be routed. HITL — requires membership of
+        the `Compliance` group (authority `GROUP_Compliance`) in addition to `GROUP_Underwriting`; a token
+        without Compliance → 403. 204 on success.
+      operationId: clearScreeningHold
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Hold cleared }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+        "409": { $ref: '#/components/responses/Conflict' }
+  /v1/submissions/{id}:
+    get:
+      summary: Get a submission
+      operationId: getSubmission
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubmissionResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RegisterRequest:
+      type: object
+      properties:
+        broker_ref: { type: string, nullable: true }
+        insured_name: { type: string }
+        product_line: { type: string, nullable: true }
+    ExposureRequest:
+      type: object
+      properties:
+        site_name: { type: string, nullable: true }
+        country: { type: string, nullable: true }
+        tiv_amount: { type: number, nullable: true, description: Total insured value }
+        currency: { type: string, nullable: true }
+        occupancy: { type: string, nullable: true }
+        loss_history: { type: string, nullable: true }
+        cat_flag: { type: boolean }
+    TriageRequest:
+      type: object
+      properties:
+        decision: { type: string, enum: [ROUTE, DECLINE, RETURN] }
+        completeness_score: { type: integer, nullable: true }
+        appetite_flag: { type: string, nullable: true }
+        reason: { type: string, nullable: true }
+    RouteRequest:
+      type: object
+      properties:
+        target: { type: string, description: The downstream target the submission is routed to }
+    SubmissionResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        broker_ref: { type: string, nullable: true }
+        insured_name: { type: string }
+        product_line: { type: string, nullable: true }
+        status: { type: string, enum: [RECEIVED, TRIAGED, ROUTED, DECLINED] }
+        screening_hold: { type: boolean, description: true while under a sanctions/AML hold }
+        routed_target: { type: string, nullable: true }
+        received_at: { type: string, format: date-time }
+    ListSubmissionsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/SubmissionResponse' }
+        next_cursor: { type: string, nullable: true }
+    ScreeningHold:
+      type: object
+      description: >
+        The sanctions-HOLD 409 body on /route (SubmissionScreeningHoldException). NOTE: unlike the policy and
+        payment hold bodies, this one has NO `gate` field.
+      properties:
+        status: { type: integer, example: 409 }
+        alertId: { type: string, format: uuid, nullable: true, description: null on a fail-closed engine outage }
+        detail: { type: string, example: routing blocked pending sanctions review }
+    ProblemDetail:
+      type: object
+      description: Error body — {"status":…,"detail":…}
+      properties:
+        status: { type: integer }
+        detail: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid input (bad cursor, data constraint, malformed request)
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemDetail' } } }
+    Unauthorized: { description: No / invalid token }
+    Forbidden:
+      description: >
+        Authenticated but not in the required group — the Underwriting group (GROUP_Underwriting) for every
+        endpoint, or additionally the Compliance group (GROUP_Compliance) for /clear-hold.
+    NotFound:
+      description: No submission with that id
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemDetail' } } }
+    Conflict:
+      description: Illegal lifecycle transition for the submission's current state
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemDetail' } } }
+    UnprocessableEntity:
+      description: Invalid input (e.g. unknown triage decision / status, blank required field)
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemDetail' } } }
