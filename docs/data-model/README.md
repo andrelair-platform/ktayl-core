@@ -2,27 +2,30 @@
 
 ## Tables
 
-| Name                                                      | Columns | Comment | Type       |
-| --------------------------------------------------------- | ------- | ------- | ---------- |
-| [billing.audit_log](billing.audit_log.md)                 | 7       |         | BASE TABLE |
-| [billing.dunning_case](billing.dunning_case.md)           | 8       |         | BASE TABLE |
-| [billing.ingested_policy](billing.ingested_policy.md)     | 10      |         | BASE TABLE |
-| [billing.installment](billing.installment.md)             | 7       |         | BASE TABLE |
-| [billing.invoice](billing.invoice.md)                     | 6       |         | BASE TABLE |
-| [billing.ledger_outbox](billing.ledger_outbox.md)         | 11      |         | BASE TABLE |
-| [billing.payment](billing.payment.md)                     | 9       |         | BASE TABLE |
-| [billing.schema_marker](billing.schema_marker.md)         | 2       |         | BASE TABLE |
-| [billing.webhook_event](billing.webhook_event.md)         | 4       |         | BASE TABLE |
-| [complaints.audit_log](complaints.audit_log.md)           | 7       |         | BASE TABLE |
-| [complaints.complaint](complaints.complaint.md)           | 10      |         | BASE TABLE |
-| [complaints.schema_marker](complaints.schema_marker.md)   | 2       |         | BASE TABLE |
-| [policy.policy](policy.policy.md)                         | 9       |         | BASE TABLE |
-| [policy.policy_audit_log](policy.policy_audit_log.md)     | 8       |         | BASE TABLE |
-| [screening.alert](screening.alert.md)                     | 5       |         | BASE TABLE |
-| [screening.party](screening.party.md)                     | 9       |         | BASE TABLE |
-| [screening.screening](screening.screening.md)             | 6       |         | BASE TABLE |
-| [screening.screening_audit](screening.screening_audit.md) | 7       |         | BASE TABLE |
-| [screening.screening_case](screening.screening_case.md)   | 8       |         | BASE TABLE |
+| Name                                                            | Columns | Comment | Type       |
+| --------------------------------------------------------------- | ------- | ------- | ---------- |
+| [billing.audit_log](billing.audit_log.md)                       | 7       |         | BASE TABLE |
+| [billing.dunning_case](billing.dunning_case.md)                 | 8       |         | BASE TABLE |
+| [billing.ingested_policy](billing.ingested_policy.md)           | 10      |         | BASE TABLE |
+| [billing.installment](billing.installment.md)                   | 7       |         | BASE TABLE |
+| [billing.invoice](billing.invoice.md)                           | 6       |         | BASE TABLE |
+| [billing.ledger_outbox](billing.ledger_outbox.md)               | 11      |         | BASE TABLE |
+| [billing.payment](billing.payment.md)                           | 9       |         | BASE TABLE |
+| [billing.schema_marker](billing.schema_marker.md)               | 2       |         | BASE TABLE |
+| [billing.webhook_event](billing.webhook_event.md)               | 4       |         | BASE TABLE |
+| [complaints.audit_log](complaints.audit_log.md)                 | 7       |         | BASE TABLE |
+| [complaints.complaint](complaints.complaint.md)                 | 10      |         | BASE TABLE |
+| [complaints.schema_marker](complaints.schema_marker.md)         | 2       |         | BASE TABLE |
+| [policy.policy](policy.policy.md)                               | 9       |         | BASE TABLE |
+| [policy.policy_audit_log](policy.policy_audit_log.md)           | 8       |         | BASE TABLE |
+| [screening.alert](screening.alert.md)                           | 5       |         | BASE TABLE |
+| [screening.party](screening.party.md)                           | 9       |         | BASE TABLE |
+| [screening.screening](screening.screening.md)                   | 6       |         | BASE TABLE |
+| [screening.screening_audit](screening.screening_audit.md)       | 7       |         | BASE TABLE |
+| [screening.screening_case](screening.screening_case.md)         | 8       |         | BASE TABLE |
+| [submission.exposure_item](submission.exposure_item.md)         | 10      |         | BASE TABLE |
+| [submission.submission](submission.submission.md)               | 10      |         | BASE TABLE |
+| [submission.submission_triage](submission.submission_triage.md) | 8       |         | BASE TABLE |
 
 ## Relations
 
@@ -37,6 +40,8 @@ erDiagram
 "screening.alert" }o--|| "screening.screening" : "FOREIGN KEY (screening_id) REFERENCES screening.screening(id)"
 "screening.screening" }o--|| "screening.party" : "FOREIGN KEY (party_id) REFERENCES screening.party(id)"
 "screening.screening_case" |o--|| "screening.alert" : "FOREIGN KEY (alert_id) REFERENCES screening.alert(id)"
+"submission.exposure_item" }o--|| "submission.submission" : "FOREIGN KEY (submission_id) REFERENCES submission.submission(id)"
+"submission.submission_triage" }o--|| "submission.submission" : "FOREIGN KEY (submission_id) REFERENCES submission.submission(id)"
 
 "billing.audit_log" {
   varchar_32_ action
@@ -210,6 +215,40 @@ erDiagram
   varchar_8_ risk
   varchar_8_ status
   varchar_8_ vigilance
+}
+"submission.exposure_item" {
+  boolean cat_flag
+  varchar_64_ country
+  timestamp_with_time_zone created_at
+  varchar_8_ currency
+  uuid id
+  text loss_history
+  varchar_128_ occupancy
+  varchar_256_ site_name
+  uuid submission_id FK
+  numeric_18_2_ tiv_amount
+}
+"submission.submission" {
+  varchar_128_ broker_ref
+  uuid id
+  varchar_256_ insured_name
+  varchar_64_ product_line
+  timestamp_with_time_zone received_at
+  varchar_64_ routed_target
+  uuid screening_alert_id
+  boolean screening_hold
+  varchar_16_ status
+  timestamp_with_time_zone updated_at
+}
+"submission.submission_triage" {
+  varchar_128_ actor
+  varchar_32_ appetite_flag
+  integer completeness_score
+  timestamp_with_time_zone decided_at
+  varchar_16_ decision
+  bigint id
+  text reason
+  uuid submission_id FK
 }
 ```
 

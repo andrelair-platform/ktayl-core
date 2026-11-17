@@ -1701,6 +1701,298 @@
           ]
         }
       ]
+    },
+    {
+      "name": "submission.exposure_item",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "cat_flag",
+          "type": "boolean",
+          "nullable": false,
+          "default": "false"
+        },
+        {
+          "name": "country",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "currency",
+          "type": "varchar(8)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "loss_history",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "occupancy",
+          "type": "varchar(128)",
+          "nullable": true
+        },
+        {
+          "name": "site_name",
+          "type": "varchar(256)",
+          "nullable": false
+        },
+        {
+          "name": "submission_id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "tiv_amount",
+          "type": "numeric(18,2)",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "exposure_item_pkey",
+          "def": "CREATE UNIQUE INDEX exposure_item_pkey ON submission.exposure_item USING btree (id)",
+          "table": "submission.exposure_item",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_exposure_item_submission",
+          "def": "CREATE INDEX idx_exposure_item_submission ON submission.exposure_item USING btree (submission_id)",
+          "table": "submission.exposure_item",
+          "columns": [
+            "submission_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "exposure_item_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "submission.exposure_item",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "exposure_item_submission_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (submission_id) REFERENCES submission.submission(id)",
+          "table": "submission.exposure_item",
+          "referenced_table": "submission.submission",
+          "columns": [
+            "submission_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "submission.submission",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "broker_ref",
+          "type": "varchar(128)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "insured_name",
+          "type": "varchar(256)",
+          "nullable": false
+        },
+        {
+          "name": "product_line",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "received_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "routed_target",
+          "type": "varchar(64)",
+          "nullable": true
+        },
+        {
+          "name": "screening_alert_id",
+          "type": "uuid",
+          "nullable": true
+        },
+        {
+          "name": "screening_hold",
+          "type": "boolean",
+          "nullable": false,
+          "default": "false"
+        },
+        {
+          "name": "status",
+          "type": "varchar(16)",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "submission_pkey",
+          "def": "CREATE UNIQUE INDEX submission_pkey ON submission.submission USING btree (id)",
+          "table": "submission.submission",
+          "columns": [
+            "id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "submission_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "submission.submission",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "submission_status_check",
+          "type": "CHECK",
+          "def": "CHECK (((status)::text = ANY ((ARRAY['RECEIVED'::character varying, 'TRIAGED'::character varying, 'ROUTED'::character varying, 'DECLINED'::character varying])::text[])))",
+          "table": "submission.submission",
+          "referenced_table": "",
+          "columns": [
+            "status"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "submission.submission_triage",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "actor",
+          "type": "varchar(128)",
+          "nullable": false
+        },
+        {
+          "name": "appetite_flag",
+          "type": "varchar(32)",
+          "nullable": true
+        },
+        {
+          "name": "completeness_score",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "decision",
+          "type": "varchar(16)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "submission_id",
+          "type": "uuid",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_submission_triage_submission",
+          "def": "CREATE INDEX idx_submission_triage_submission ON submission.submission_triage USING btree (submission_id)",
+          "table": "submission.submission_triage",
+          "columns": [
+            "submission_id"
+          ]
+        },
+        {
+          "name": "submission_triage_pkey",
+          "def": "CREATE UNIQUE INDEX submission_triage_pkey ON submission.submission_triage USING btree (id)",
+          "table": "submission.submission_triage",
+          "columns": [
+            "id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "submission_triage_decision_check",
+          "type": "CHECK",
+          "def": "CHECK (((decision)::text = ANY ((ARRAY['ROUTE'::character varying, 'DECLINE'::character varying, 'RETURN'::character varying])::text[])))",
+          "table": "submission.submission_triage",
+          "referenced_table": "",
+          "columns": [
+            "decision"
+          ]
+        },
+        {
+          "name": "submission_triage_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "submission.submission_triage",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "submission_triage_submission_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (submission_id) REFERENCES submission.submission(id)",
+          "table": "submission.submission_triage",
+          "referenced_table": "submission.submission",
+          "columns": [
+            "submission_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        }
+      ]
     }
   ],
   "relations": [
@@ -1807,6 +2099,32 @@
       ],
       "parent_cardinality": "exactly_one",
       "def": "FOREIGN KEY (alert_id) REFERENCES screening.alert(id)"
+    },
+    {
+      "table": "submission.exposure_item",
+      "columns": [
+        "submission_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "submission.submission",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (submission_id) REFERENCES submission.submission(id)"
+    },
+    {
+      "table": "submission.submission_triage",
+      "columns": [
+        "submission_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "submission.submission",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (submission_id) REFERENCES submission.submission(id)"
     }
   ],
   "driver": {
