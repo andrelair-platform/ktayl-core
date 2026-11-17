@@ -19,6 +19,7 @@ import com.ktayl.core.submission.domain.InvalidSubmissionException;
 import com.ktayl.core.submission.domain.SubmissionNotFoundException;
 import com.ktayl.core.submission.domain.SubmissionScreeningHoldException;
 import com.ktayl.core.submission.domain.SubmissionStatus;
+import com.ktayl.core.submission.domain.UnderwritingHandoffException;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -90,7 +91,7 @@ class SubmissionApiContractTest {
     @Test
     void get_returns_the_view_never_the_entity() throws Exception {
         when(query.findById(ID)).thenReturn(Optional.of(new SubmissionView(ID, "BRK-1", "ACME SA", "MARINE",
-                SubmissionStatus.RECEIVED.name(), false, null, Instant.parse("2026-11-17T10:15:30Z"))));
+                SubmissionStatus.RECEIVED.name(), false, null, null, Instant.parse("2026-11-17T10:15:30Z"))));
 
         mvc.perform(get("/v1/submissions/{id}", ID).with(underwriter()))
                 .andExpect(status().isOk())
@@ -126,6 +127,16 @@ class SubmissionApiContractTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.alertId").value(alert.toString()))
                 .andExpect(jsonPath("$.detail").value("routing blocked pending sanctions review"));
+    }
+
+    @Test
+    void a_failed_underwriting_handoff_is_502() throws Exception {
+        org.mockito.Mockito.doThrow(new UnderwritingHandoffException(ID, "connection refused", null))
+                .when(intake).route(any(), any(), any());
+        mvc.perform(post("/v1/submissions/{id}/route", ID).with(underwriter())
+                        .contentType("application/json").content("{\"target\":\"underwriting\"}"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.status").value(502));
     }
 
     @Test

@@ -41,6 +41,9 @@ public class SubmissionJpaEntity {
     @Column(name = "routed_target")
     private String routedTarget;
 
+    @Column(name = "uw_submission_ref")
+    private String uwSubmissionRef;
+
     @Column(name = "received_at", nullable = false)
     private Instant receivedAt;
 
@@ -50,8 +53,8 @@ public class SubmissionJpaEntity {
     protected SubmissionJpaEntity() {} // JPA
 
     public SubmissionJpaEntity(UUID id, String brokerRef, String insuredName, String productLine, String status,
-            boolean screeningHold, UUID screeningAlertId, String routedTarget, Instant receivedAt,
-            Instant updatedAt) {
+            boolean screeningHold, UUID screeningAlertId, String routedTarget, String uwSubmissionRef,
+            Instant receivedAt, Instant updatedAt) {
         this.id = id;
         this.brokerRef = brokerRef;
         this.insuredName = insuredName;
@@ -60,6 +63,7 @@ public class SubmissionJpaEntity {
         this.screeningHold = screeningHold;
         this.screeningAlertId = screeningAlertId;
         this.routedTarget = routedTarget;
+        this.uwSubmissionRef = uwSubmissionRef;
         this.receivedAt = receivedAt;
         this.updatedAt = updatedAt;
     }
@@ -72,6 +76,7 @@ public class SubmissionJpaEntity {
     public boolean isScreeningHold() { return screeningHold; }
     public UUID getScreeningAlertId() { return screeningAlertId; }
     public String getRoutedTarget() { return routedTarget; }
+    public String getUwSubmissionRef() { return uwSubmissionRef; }
     public Instant getReceivedAt() { return receivedAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

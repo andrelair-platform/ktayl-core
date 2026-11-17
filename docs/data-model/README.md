@@ -23,8 +23,8 @@
 | [screening.screening](screening.screening.md)                   | 6       |         | BASE TABLE |
 | [screening.screening_audit](screening.screening_audit.md)       | 7       |         | BASE TABLE |
 | [screening.screening_case](screening.screening_case.md)         | 8       |         | BASE TABLE |
-| [submission.exposure_item](submission.exposure_item.md)         | 10      |         | BASE TABLE |
-| [submission.submission](submission.submission.md)               | 10      |         | BASE TABLE |
+| [submission.exposure_item](submission.exposure_item.md)         | 11      |         | BASE TABLE |
+| [submission.submission](submission.submission.md)               | 11      |         | BASE TABLE |
 | [submission.submission_triage](submission.submission_triage.md) | 8       |         | BASE TABLE |
 
 ## Relations
@@ -224,6 +224,7 @@ erDiagram
   uuid id
   text loss_history
   varchar_128_ occupancy
+  varchar_16_ postcode
   varchar_256_ site_name
   uuid submission_id FK
   numeric_18_2_ tiv_amount
@@ -239,6 +240,7 @@ erDiagram
   boolean screening_hold
   varchar_16_ status
   timestamp_with_time_zone updated_at
+  varchar_64_ uw_submission_ref
 }
 "submission.submission_triage" {
   varchar_128_ actor

@@ -29,11 +29,12 @@ public final class Submission {
     private boolean screeningHold;
     private UUID screeningAlertId;   // the screening alert opened at intake (null unless held)
     private String routedTarget;     // set on route
+    private String uwSubmissionRef;  // the underwriting submission id from the handoff (null until handed off)
     private Instant updatedAt;
 
     private Submission(UUID id, String brokerRef, String insuredName, String productLine, Instant receivedAt,
             SubmissionStatus status, boolean screeningHold, UUID screeningAlertId, String routedTarget,
-            Instant updatedAt) {
+            String uwSubmissionRef, Instant updatedAt) {
         this.id = id;
         this.brokerRef = brokerRef;
         this.insuredName = insuredName;
@@ -43,6 +44,7 @@ public final class Submission {
         this.screeningHold = screeningHold;
         this.screeningAlertId = screeningAlertId;
         this.routedTarget = routedTarget;
+        this.uwSubmissionRef = uwSubmissionRef;
         this.updatedAt = updatedAt;
     }
 
@@ -63,15 +65,15 @@ public final class Submission {
             throw new InvalidSubmissionException("product line is required");
         }
         return new Submission(UUID.randomUUID(), brokerRef.strip(), insuredName.strip(), productLine.strip(),
-                now, SubmissionStatus.RECEIVED, false, null, null, now);
+                now, SubmissionStatus.RECEIVED, false, null, null, null, now);
     }
 
     /** Rebuild an aggregate from persisted state (used only by the persistence adapter). */
     public static Submission rehydrate(UUID id, String brokerRef, String insuredName, String productLine,
             Instant receivedAt, SubmissionStatus status, boolean screeningHold, UUID screeningAlertId,
-            String routedTarget, Instant updatedAt) {
+            String routedTarget, String uwSubmissionRef, Instant updatedAt) {
         return new Submission(id, brokerRef, insuredName, productLine, receivedAt, status, screeningHold,
-                screeningAlertId, routedTarget, updatedAt);
+                screeningAlertId, routedTarget, uwSubmissionRef, updatedAt);
     }
 
     // ── Intake screening (RC-02) ────────────────────────────────────────────────────────────────────────
@@ -140,6 +142,23 @@ public final class Submission {
     }
 
     /**
+     * Record the underwriting submission id returned by a successful handoff (SUB-02). Only valid once the
+     * submission is {@link SubmissionStatus#ROUTED} — the handoff happens in {@code route()} right after the
+     * local ROUTED transition + save. Keeps the handoff result on the aggregate so the created UW submission
+     * is traceable from the broker submission.
+     *
+     * @throws IllegalSubmissionTransitionException if not currently ROUTED
+     * @throws InvalidSubmissionException           if {@code uwRef} is blank
+     */
+    public void recordUwHandoff(String uwRef) {
+        requireStatus(SubmissionStatus.ROUTED);
+        if (uwRef == null || uwRef.isBlank()) {
+            throw new InvalidSubmissionException("underwriting submission ref is required");
+        }
+        this.uwSubmissionRef = uwRef.strip();
+    }
+
+    /**
      * Decline the submission directly (→ {@code DECLINED}) from {@code RECEIVED} or {@code TRIAGED} — the
      * explicit decline path, distinct from a triage DECLINE.
      *
@@ -172,5 +191,6 @@ public final class Submission {
     public boolean screeningHold() { return screeningHold; }
     public UUID screeningAlertId() { return screeningAlertId; }
     public String routedTarget() { return routedTarget; }
+    public String uwSubmissionRef() { return uwSubmissionRef; }
     public Instant updatedAt() { return updatedAt; }
 }

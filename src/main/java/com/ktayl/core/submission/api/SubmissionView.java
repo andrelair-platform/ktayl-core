@@ -16,5 +16,6 @@ public record SubmissionView(
         String status,
         boolean screeningHold,
         String routedTarget,
+        String uwSubmissionRef,
         Instant receivedAt) {
 }

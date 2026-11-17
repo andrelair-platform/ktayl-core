@@ -56,6 +56,7 @@ erDiagram
   boolean screening_hold
   varchar_16_ status
   timestamp_with_time_zone updated_at
+  varchar_64_ uw_submission_ref
 }
 ```
 

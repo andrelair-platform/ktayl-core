@@ -18,6 +18,10 @@ import com.ktayl.core.submission.domain.SubmissionRepository;
 import com.ktayl.core.submission.domain.SubmissionStatus;
 import com.ktayl.core.submission.domain.TriageDecision;
 import com.ktayl.core.submission.domain.TriageLog;
+import com.ktayl.core.submission.domain.UnderwritingHandoffException;
+import com.ktayl.core.submission.domain.UnderwritingPort;
+import com.ktayl.core.submission.domain.UnderwritingSubmissionMapper;
+import com.ktayl.core.submission.domain.UnderwritingSubmissionRequest;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -54,13 +58,15 @@ public class SubmissionService implements SubmissionIntake, SubmissionQuery {
     private final SubmissionRepository submissions;
     private final TriageLog triageLog;
     private final ScreeningGate screening;
+    private final UnderwritingPort underwriting;
     private final Clock clock;
 
     public SubmissionService(SubmissionRepository submissions, TriageLog triageLog, ScreeningGate screening,
-            Clock clock) {
+            UnderwritingPort underwriting, Clock clock) {
         this.submissions = submissions;
         this.triageLog = triageLog;
         this.screening = screening;
+        this.underwriting = underwriting;
         this.clock = clock;
     }
 
@@ -92,8 +98,8 @@ public class SubmissionService implements SubmissionIntake, SubmissionQuery {
     public UUID addExposure(UUID submissionId, AddExposureCommand command, String actor) {
         Submission submission = load(submissionId);
         ExposureItem exposure = ExposureItem.create(submission.id(), command.siteName(), command.country(),
-                command.tivAmount(), command.currency(), command.occupancy(), command.lossHistory(),
-                command.catFlag(), Instant.now(clock));
+                command.tivAmount(), command.currency(), command.occupancy(), command.postcode(),
+                command.lossHistory(), command.catFlag(), Instant.now(clock));
         ExposureItem saved = submissions.saveExposure(exposure);
         log.info("submission {} exposure added id={} site={} tiv={} {}", submissionId, saved.id(),
                 saved.siteName(), saved.tivAmount(), saved.currency());
@@ -114,6 +120,17 @@ public class SubmissionService implements SubmissionIntake, SubmissionQuery {
                 submission.status());
     }
 
+    /**
+     * Route a triaged submission onward AND hand it off to the underwriting (#12) service (SUB-02).
+     *
+     * <p><b>Order + resilience:</b> the local {@code ROUTED} transition + save happen FIRST (and throw
+     * {@link SubmissionScreeningHoldException} before any write if held). Only then is the dossier mapped and
+     * POSTed to underwriting via the {@link UnderwritingPort}. If that handoff fails (any HTTP/transport
+     * error), an {@link UnderwritingHandoffException} propagates (→ 502) — the submission is NOT left in a
+     * half-state: it stays {@code ROUTED} with a null {@code uw_submission_ref}, so the failure is surfaced
+     * and the handoff is retryable, never silently swallowed. On success the returned UW submission id is
+     * recorded on the aggregate and saved.
+     */
     @Override
     @Transactional
     public void route(UUID submissionId, RouteSubmissionCommand command, String actor) {
@@ -121,10 +138,25 @@ public class SubmissionService implements SubmissionIntake, SubmissionQuery {
         SubmissionStatus from = submission.status();
         submission.route(command.target(), Instant.now(clock));  // throws SubmissionScreeningHoldException if held
         submissions.save(submission);
-        // TODO(SUB-02): hand the routed submission off to the underwriting (#12) service over M2M here
-        //   (create a UW submission from this dossier). SUB-01 only records the routing locally.
         log.info("submission {} routed to {} by {} ({} -> {})", submissionId, submission.routedTarget(), actor,
                 from, submission.status());
+
+        // SUB-02: hand the routed submission off to underwriting (#12) — create a real UW submission from the
+        // exposure dossier. DEV: underwriting auth is OFF, the adapter calls unauthenticated (TODO(SUB-02-prod)
+        // adds the OAuth2 client-credentials token). A handoff failure → UnderwritingHandoffException (502).
+        UnderwritingSubmissionRequest request =
+                UnderwritingSubmissionMapper.toRequest(submission, submissions.findExposures(submissionId));
+        String uwRef;
+        try {
+            uwRef = underwriting.createSubmission(request);
+        } catch (UnderwritingHandoffException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new UnderwritingHandoffException(submissionId, e.getMessage(), e);
+        }
+        submission.recordUwHandoff(uwRef);
+        submissions.save(submission);
+        log.info("submission {} handed off to underwriting as UW submission {}", submissionId, uwRef);
     }
 
     @Override
@@ -178,6 +210,6 @@ public class SubmissionService implements SubmissionIntake, SubmissionQuery {
 
     private static SubmissionView toView(Submission s) {
         return new SubmissionView(s.id(), s.brokerRef(), s.insuredName(), s.productLine(), s.status().name(),
-                s.screeningHold(), s.routedTarget(), s.receivedAt());
+                s.screeningHold(), s.routedTarget(), s.uwSubmissionRef(), s.receivedAt());
     }
 }

@@ -62,24 +62,24 @@ class SubmissionPersistenceAdapter implements SubmissionRepository {
 
     private static SubmissionJpaEntity toEntity(Submission s) {
         return new SubmissionJpaEntity(s.id(), s.brokerRef(), s.insuredName(), s.productLine(),
-                s.status().name(), s.screeningHold(), s.screeningAlertId(), s.routedTarget(), s.receivedAt(),
-                s.updatedAt());
+                s.status().name(), s.screeningHold(), s.screeningAlertId(), s.routedTarget(),
+                s.uwSubmissionRef(), s.receivedAt(), s.updatedAt());
     }
 
     private static Submission toDomain(SubmissionJpaEntity e) {
         return Submission.rehydrate(e.getId(), e.getBrokerRef(), e.getInsuredName(), e.getProductLine(),
                 e.getReceivedAt(), SubmissionStatus.valueOf(e.getStatus()), e.isScreeningHold(),
-                e.getScreeningAlertId(), e.getRoutedTarget(), e.getUpdatedAt());
+                e.getScreeningAlertId(), e.getRoutedTarget(), e.getUwSubmissionRef(), e.getUpdatedAt());
     }
 
     private static ExposureItemJpaEntity toEntity(ExposureItem x) {
         return new ExposureItemJpaEntity(x.id(), x.submissionId(), x.siteName(), x.country(), x.tivAmount(),
-                x.currency(), x.occupancy(), x.lossHistory(), x.catFlag(), x.createdAt());
+                x.currency(), x.occupancy(), x.postcode(), x.lossHistory(), x.catFlag(), x.createdAt());
     }
 
     private static ExposureItem toDomain(ExposureItemJpaEntity e) {
         return ExposureItem.rehydrate(e.getId(), e.getSubmissionId(), e.getSiteName(), e.getCountry(),
-                e.getTivAmount(), e.getCurrency(), e.getOccupancy(), e.getLossHistory(), e.isCatFlag(),
-                e.getCreatedAt());
+                e.getTivAmount(), e.getCurrency(), e.getOccupancy(), e.getPostcode(), e.getLossHistory(),
+                e.isCatFlag(), e.getCreatedAt());
     }
 }

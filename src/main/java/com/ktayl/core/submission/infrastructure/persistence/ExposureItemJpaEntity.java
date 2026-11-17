@@ -37,6 +37,9 @@ public class ExposureItemJpaEntity {
     @Column
     private String occupancy;
 
+    @Column
+    private String postcode;
+
     @Column(name = "loss_history")
     private String lossHistory;
 
@@ -49,8 +52,8 @@ public class ExposureItemJpaEntity {
     protected ExposureItemJpaEntity() {} // JPA
 
     public ExposureItemJpaEntity(UUID id, UUID submissionId, String siteName, String country,
-            BigDecimal tivAmount, String currency, String occupancy, String lossHistory, boolean catFlag,
-            Instant createdAt) {
+            BigDecimal tivAmount, String currency, String occupancy, String postcode, String lossHistory,
+            boolean catFlag, Instant createdAt) {
         this.id = id;
         this.submissionId = submissionId;
         this.siteName = siteName;
@@ -58,6 +61,7 @@ public class ExposureItemJpaEntity {
         this.tivAmount = tivAmount;
         this.currency = currency;
         this.occupancy = occupancy;
+        this.postcode = postcode;
         this.lossHistory = lossHistory;
         this.catFlag = catFlag;
         this.createdAt = createdAt;
@@ -70,6 +74,7 @@ public class ExposureItemJpaEntity {
     public BigDecimal getTivAmount() { return tivAmount; }
     public String getCurrency() { return currency; }
     public String getOccupancy() { return occupancy; }
+    public String getPostcode() { return postcode; }
     public String getLossHistory() { return lossHistory; }
     public boolean isCatFlag() { return catFlag; }
     public Instant getCreatedAt() { return createdAt; }
