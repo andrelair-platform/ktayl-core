@@ -1,0 +1,192 @@
+openapi: 3.0.3
+info:
+  title: ktayl-core — Screening API
+  version: "0.1.0"
+  description: >
+    Sanctions / AML screening module (RC-02) of the ktayl-core modular monolith. Screens a party at a gate
+    (fail-closed — an engine outage returns HOLD, not ALLOW), reads a party's latest status, lists screening
+    alerts, and records a human HITL decision on an alert. All endpoints require an Authentik OIDC bearer
+    token (401 without one). The decision endpoint is additionally group-gated: membership of the `Compliance`
+    group (authority `GROUP_Compliance`) is required (403 without it) — only a compliance officer decides an
+    alert. The acting principal is taken from the token for audit attribution. Per-module contract (Billing's
+    is api/openapi.yaml). Hand-maintained to match
+    com.ktayl.core.screening.infrastructure.web.ScreeningController + its ScreeningExceptionHandler; verified
+    by the L3 contract test.
+servers:
+  - url: https://ktayl-core.10.0.0.200.nip.io
+    description: dev (internal — Tailscale + minicloud CA; host finalised per env)
+security:
+  - bearerAuth: []
+paths:
+  /v1/screening/screen:
+    post:
+      summary: Screen a party at a gate
+      description: >
+        Screens a party against the sanctions/PEP/AME datasets at the named gate. Always 200 with a verdict:
+        `ALLOW` on a clean pass, `HOLD` on a hit OR on a fail-closed engine outage (the system never
+        auto-allows when the engine is unreachable). On a HOLD an `alert_id` is returned so the caller can
+        link to the raised alert; on a clean ALLOW `alert_id` is null.
+      operationId: screenParty
+      parameters:
+        - name: gateName
+          in: query
+          required: false
+          schema: { type: string, default: intake }
+          description: The gate being screened (e.g. intake, bind, payment). Defaults to `intake`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScreenRequest' }
+      responses:
+        "200":
+          description: Screening outcome (ALLOW or HOLD)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScreenResponse' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+  /v1/screening/parties/{id}:
+    get:
+      summary: Latest screening status for a party
+      description: The most recent screening verdict recorded for the party (ALLOW or HOLD).
+      operationId: getPartyStatus
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PartyStatusResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "404": { $ref: '#/components/responses/NotFound' }
+  /v1/screening/alerts:
+    get:
+      summary: List screening alerts
+      description: >
+        Always 200 with a `{"items":[…],"next_cursor":…}` envelope. Optional `?status=`
+        (ACC/REF/PENDING — PENDING covers an undecided alert) and `?bucket=` filters, plus `?cursor=`
+        (opaque keyset cursor) and `?limit=` (1–100, default 20). An invalid status, bucket, or cursor → 400.
+        `next_cursor` is returned only when a full page comes back.
+      operationId: listAlerts
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [ACC, REF, PENDING] }
+          description: Case-status filter (case-insensitive).
+        - name: bucket
+          in: query
+          required: false
+          schema: { type: string, enum: [SANCTION, PEP, AME, RISK_COUNTRY, UBO, ORIAS] }
+          description: Match-bucket filter (case-insensitive).
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+          description: Opaque keyset cursor from a previous page's next_cursor.
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: A page of alerts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListAlertsResponse' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+  /v1/screening/alerts/{id}/decision:
+    post:
+      summary: Record a HITL decision on an alert (Compliance only)
+      description: >
+        Server-side authority for a human compliance decision on an alert. Requires membership of the
+        `Compliance` group (authority `GROUP_Compliance`) — a token without it → 403. `status` is required
+        (ACC/REF/PENDING); `risk` (WEAK/MED/STRONG) and `vigilance` (NORMAL/ENHANCED) are optional. 200 on
+        success; 404 if the alert is unknown; 422 if the decision is invalid for the alert's state.
+      operationId: decideAlert
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionRequest' }
+      responses:
+        "200": { description: Decision recorded }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+        "422": { $ref: '#/components/responses/UnprocessableEntity' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ScreenRequest:
+      type: object
+      properties:
+        external_ref: { type: string, nullable: true, description: Caller's reference for the party }
+        name: { type: string }
+        dob: { type: string, format: date, nullable: true }
+        nationality: { type: string, nullable: true }
+        residence: { type: string, nullable: true }
+    ScreenResponse:
+      type: object
+      properties:
+        verdict: { type: string, enum: [ALLOW, HOLD] }
+        alert_id: { type: string, format: uuid, nullable: true, description: Present on a HOLD; null on a clean ALLOW }
+        dataset_version: { type: string, description: The sanctions dataset version the screen ran against }
+    PartyStatusResponse:
+      type: object
+      properties:
+        party_id: { type: string, format: uuid }
+        status: { type: string, enum: [ALLOW, HOLD] }
+    AlertResponse:
+      type: object
+      properties:
+        alert_id: { type: string, format: uuid }
+        screening_id: { type: string, format: uuid }
+        party_id: { type: string, format: uuid }
+        bucket: { type: string, enum: [SANCTION, PEP, AME, RISK_COUNTRY, UBO, ORIAS] }
+        score: { type: integer }
+        matched_entry: { type: string, nullable: true }
+        case_status: { type: string, enum: [ACC, REF, PENDING], nullable: true, description: null if undecided }
+    ListAlertsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AlertResponse' }
+        next_cursor: { type: string, nullable: true }
+    DecisionRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ACC, REF, PENDING] }
+        risk: { type: string, enum: [WEAK, MED, STRONG], nullable: true }
+        vigilance: { type: string, enum: [NORMAL, ENHANCED], nullable: true }
+        rationale: { type: string, nullable: true }
+    ProblemDetail:
+      type: object
+      description: Error body — {"status":…,"detail":…}
+      properties:
+        status: { type: integer }
+        detail: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid input (unknown status/bucket, bad cursor, data constraint)
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemDetail' } } }
+    Unauthorized: { description: No / invalid token }
+    Forbidden: { description: Authenticated but not in the Compliance group (GROUP_Compliance) }
+    NotFound:
+      description: No alert / no screening for that id
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemDetail' } } }
+    UnprocessableEntity:
+      description: Invalid decision for the alert's current state
+      content: { application/json: { schema: { $ref: '#/components/schemas/ProblemDetail' } } }
