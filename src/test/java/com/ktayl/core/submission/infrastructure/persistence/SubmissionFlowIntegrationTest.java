@@ -12,6 +12,7 @@ import com.ktayl.core.submission.api.SubmissionView;
 import com.ktayl.core.submission.api.TriageSubmissionCommand;
 import com.ktayl.core.submission.application.SubmissionService;
 import com.ktayl.core.submission.domain.SubmissionScreeningHoldException;
+import com.ktayl.core.submission.domain.UnderwritingPort;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -45,15 +46,24 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         SubmissionFlowIntegrationTest.Stubs.class})
 class SubmissionFlowIntegrationTest {
 
-    /** A controllable screening gate + a fixed clock so the intake-HOLD path is deterministic. */
+    /** A controllable screening gate + a stubbed underwriting handoff + a fixed clock. */
     @TestConfiguration
     static class Stubs {
         /** Flipped per test via a static holder; ALLOW by default. */
         static volatile ScreeningOutcome nextOutcome = new ScreeningOutcome("ALLOW", null, "test");
 
+        /** The UW submission id the stubbed handoff returns (no real underwriting service in this slice). */
+        static final String STUBBED_UW_REF = "11111111-1111-1111-1111-111111111111";
+
         @Bean
         ScreeningGate screeningGate() {
             return (party, gate, actor) -> nextOutcome;
+        }
+
+        /** Stub the underwriting handoff — this slice proves persistence, not the real HTTP adapter. */
+        @Bean
+        UnderwritingPort underwritingPort() {
+            return request -> STUBBED_UW_REF;
         }
 
         @Bean
@@ -85,10 +95,12 @@ class SubmissionFlowIntegrationTest {
         });
 
         UUID exposureId = submissions.addExposure(id, new AddExposureCommand("Rotterdam Terminal", "NL",
-                new BigDecimal("12500000.00"), "EUR", "warehouse", "no losses 5y", true), "agent.kanmegnea");
+                new BigDecimal("12500000.00"), "EUR", "warehouse", "3011AA", "no losses 5y", true),
+                "agent.kanmegnea");
         assertThat(exposureRows.findById(exposureId)).get().satisfies(e -> {
             assertThat(e.getSubmissionId()).isEqualTo(id);
             assertThat(e.getTivAmount()).isEqualByComparingTo("12500000.00");
+            assertThat(e.getPostcode()).isEqualTo("3011AA");
             assertThat(e.isCatFlag()).isTrue();
         });
 
@@ -96,10 +108,12 @@ class SubmissionFlowIntegrationTest {
                 "agent.kanmegnea");
         assertThat(submissions.findById(id)).get().extracting(SubmissionView::status).isEqualTo("TRIAGED");
 
+        // route hands off to the (stubbed) underwriting port → the returned UW ref is persisted
         submissions.route(id, new RouteSubmissionCommand("underwriting"), "agent.kanmegnea");
         SubmissionView routed = submissions.findById(id).orElseThrow();
         assertThat(routed.status()).isEqualTo("ROUTED");
         assertThat(routed.routedTarget()).isEqualTo("underwriting");
+        assertThat(routed.uwSubmissionRef()).isEqualTo(Stubs.STUBBED_UW_REF);
 
         // the append-only triage row was written for this submission
         assertThat(triageRows.findAll()).anySatisfy(t -> {

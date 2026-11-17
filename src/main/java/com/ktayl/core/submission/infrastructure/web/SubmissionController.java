@@ -44,7 +44,7 @@ public class SubmissionController {
     public record RegisterRequest(String broker_ref, String insured_name, String product_line) {}
 
     public record ExposureRequest(String site_name, String country, BigDecimal tiv_amount, String currency,
-            String occupancy, String loss_history, boolean cat_flag) {}
+            String occupancy, String postcode, String loss_history, boolean cat_flag) {}
 
     public record TriageRequest(String decision, Integer completeness_score, String appetite_flag,
             String reason) {}
@@ -52,7 +52,8 @@ public class SubmissionController {
     public record RouteRequest(String target) {}
 
     public record SubmissionResponse(UUID id, String broker_ref, String insured_name, String product_line,
-            String status, boolean screening_hold, String routed_target, Instant received_at) {}
+            String status, boolean screening_hold, String routed_target, String uw_submission_ref,
+            Instant received_at) {}
 
     /** The list envelope, carried from the policy module: {@code {"items":[…],"next_cursor":…}}. */
     public record ListSubmissionsResponse(List<SubmissionResponse> items, String next_cursor) {}
@@ -79,7 +80,8 @@ public class SubmissionController {
     public ResponseEntity<Map<String, UUID>> addExposure(@PathVariable UUID id,
             @RequestBody ExposureRequest r, @AuthenticationPrincipal Jwt jwt) {
         UUID exposureId = intake.addExposure(id, new AddExposureCommand(r.site_name(), r.country(),
-                r.tiv_amount(), r.currency(), r.occupancy(), r.loss_history(), r.cat_flag()), actor(jwt));
+                r.tiv_amount(), r.currency(), r.occupancy(), r.postcode(), r.loss_history(), r.cat_flag()),
+                actor(jwt));
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("id", exposureId));
     }
 
@@ -149,6 +151,6 @@ public class SubmissionController {
 
     private static SubmissionResponse view(SubmissionView v) {
         return new SubmissionResponse(v.id(), v.brokerRef(), v.insuredName(), v.productLine(), v.status(),
-                v.screeningHold(), v.routedTarget(), v.receivedAt());
+                v.screeningHold(), v.routedTarget(), v.uwSubmissionRef(), v.receivedAt());
     }
 }

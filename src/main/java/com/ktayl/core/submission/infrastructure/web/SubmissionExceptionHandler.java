@@ -4,6 +4,7 @@ import com.ktayl.core.submission.domain.IllegalSubmissionTransitionException;
 import com.ktayl.core.submission.domain.InvalidSubmissionException;
 import com.ktayl.core.submission.domain.SubmissionNotFoundException;
 import com.ktayl.core.submission.domain.SubmissionScreeningHoldException;
+import com.ktayl.core.submission.domain.UnderwritingHandoffException;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -49,6 +50,17 @@ class SubmissionExceptionHandler {
     @ExceptionHandler(InvalidSubmissionException.class)
     ResponseEntity<Map<String, Object>> invalid(InvalidSubmissionException e) {
         return ResponseEntity.unprocessableEntity().body(Map.of("status", 422, "detail", e.getMessage()));
+    }
+
+    /**
+     * The submission was routed locally but the handoff to the underwriting (#12) service failed (SUB-02) →
+     * 502 Bad Gateway: a downstream dependency error, surfaced (not a 5xx on OUR fault, not silently
+     * swallowed). The submission stays ROUTED with a null uw_submission_ref — the caller may retry the route.
+     */
+    @ExceptionHandler(UnderwritingHandoffException.class)
+    ResponseEntity<Map<String, Object>> underwritingHandoff(UnderwritingHandoffException e) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(Map.of("status", 502, "detail", "routed locally but underwriting handoff failed"));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

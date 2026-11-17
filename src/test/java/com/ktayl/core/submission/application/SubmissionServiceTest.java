@@ -16,6 +16,7 @@ import com.ktayl.core.screening.api.ScreeningOutcome;
 import com.ktayl.core.submission.api.RegisterSubmissionCommand;
 import com.ktayl.core.submission.api.RouteSubmissionCommand;
 import com.ktayl.core.submission.api.TriageSubmissionCommand;
+import com.ktayl.core.submission.domain.ExposureItem;
 import com.ktayl.core.submission.domain.InvalidSubmissionException;
 import com.ktayl.core.submission.domain.Submission;
 import com.ktayl.core.submission.domain.SubmissionRepository;
@@ -23,9 +24,14 @@ import com.ktayl.core.submission.domain.SubmissionScreeningHoldException;
 import com.ktayl.core.submission.domain.SubmissionStatus;
 import com.ktayl.core.submission.domain.TriageDecision;
 import com.ktayl.core.submission.domain.TriageLog;
+import com.ktayl.core.submission.domain.UnderwritingHandoffException;
+import com.ktayl.core.submission.domain.UnderwritingPort;
+import com.ktayl.core.submission.domain.UnderwritingSubmissionRequest;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -44,7 +50,9 @@ class SubmissionServiceTest {
     private final SubmissionRepository repo = mock(SubmissionRepository.class);
     private final TriageLog triageLog = mock(TriageLog.class);
     private final ScreeningGate screening = mock(ScreeningGate.class);
-    private final SubmissionService svc = new SubmissionService(repo, triageLog, screening, clock);
+    private final UnderwritingPort underwriting = mock(UnderwritingPort.class);
+    private final SubmissionService svc =
+            new SubmissionService(repo, triageLog, screening, underwriting, clock);
 
     private final RegisterSubmissionCommand cmd =
             new RegisterSubmissionCommand("BRK-1", "ACME SA", "MARINE");
@@ -117,6 +125,7 @@ class SubmissionServiceTest {
         assertThatThrownBy(() -> svc.route(s.id(), new RouteSubmissionCommand("underwriting"),
                 "agent.kanmegnea")).isInstanceOf(SubmissionScreeningHoldException.class);
         verify(repo, never()).save(any()); // nothing routed/persisted
+        verify(underwriting, never()).createSubmission(any()); // and no handoff
     }
 
     @Test
@@ -126,12 +135,61 @@ class SubmissionServiceTest {
         s.triage(TriageDecision.ROUTE, now);
         when(repo.findById(s.id())).thenReturn(Optional.of(s));
         when(repo.save(any(Submission.class))).thenAnswer(i -> i.getArgument(0));
+        when(repo.findExposures(s.id())).thenReturn(List.of());
+        when(underwriting.createSubmission(any())).thenReturn(UUID.randomUUID().toString());
 
         svc.clearScreeningHold(s.id(), "officer.sophie");
         svc.route(s.id(), new RouteSubmissionCommand("underwriting"), "agent.kanmegnea");
 
         assertThat(s.status()).isEqualTo(SubmissionStatus.ROUTED);
         assertThat(s.routedTarget()).isEqualTo("underwriting");
+    }
+
+    @Test
+    void route_hands_off_to_underwriting_with_the_mapped_request_and_records_the_uw_ref() {
+        Submission s = Submission.receive("BRK-1", "ACME SA", "MARINE", now);
+        s.triage(TriageDecision.ROUTE, now);
+        ExposureItem exposure = ExposureItem.create(s.id(), "Rotterdam Terminal", "NL",
+                new BigDecimal("12500000.00"), "EUR", "warehouse", "3011AA", "no losses", true, now);
+        when(repo.findById(s.id())).thenReturn(Optional.of(s));
+        when(repo.save(any(Submission.class))).thenAnswer(i -> i.getArgument(0));
+        when(repo.findExposures(s.id())).thenReturn(List.of(exposure));
+        String uwRef = UUID.randomUUID().toString();
+        when(underwriting.createSubmission(any())).thenReturn(uwRef);
+
+        svc.route(s.id(), new RouteSubmissionCommand("underwriting"), "agent.kanmegnea");
+
+        ArgumentCaptor<UnderwritingSubmissionRequest> req =
+                ArgumentCaptor.forClass(UnderwritingSubmissionRequest.class);
+        verify(underwriting).createSubmission(req.capture());
+        // the dossier was mapped onto the UW contract
+        assertThat(req.getValue().counterpartyName()).isEqualTo("ACME SA");
+        assertThat(req.getValue().lineOfBusiness()).isEqualTo("marine");
+        assertThat(req.getValue().country()).isEqualTo("NL");
+        assertThat(req.getValue().postcode()).isEqualTo("3011AA");
+        assertThat(req.getValue().occupancy()).isEqualTo("warehouse");
+        assertThat(req.getValue().tivEurCents()).isEqualTo(1_250_000_000L); // 12,500,000.00 EUR → eurocents
+        // the UW submission id is recorded on the aggregate
+        assertThat(s.status()).isEqualTo(SubmissionStatus.ROUTED);
+        assertThat(s.uwSubmissionRef()).isEqualTo(uwRef);
+    }
+
+    @Test
+    void a_failed_handoff_surfaces_and_leaves_the_submission_routed_with_no_uw_ref() {
+        Submission s = Submission.receive("BRK-1", "ACME SA", "MARINE", now);
+        s.triage(TriageDecision.ROUTE, now);
+        when(repo.findById(s.id())).thenReturn(Optional.of(s));
+        when(repo.save(any(Submission.class))).thenAnswer(i -> i.getArgument(0));
+        when(repo.findExposures(s.id())).thenReturn(List.of());
+        when(underwriting.createSubmission(any()))
+                .thenThrow(new UnderwritingHandoffException(s.id(), "connection refused", null));
+
+        assertThatThrownBy(() -> svc.route(s.id(), new RouteSubmissionCommand("underwriting"),
+                "agent.kanmegnea")).isInstanceOf(UnderwritingHandoffException.class);
+
+        // routed locally (the transition + save already happened), but no UW ref recorded → retryable
+        assertThat(s.status()).isEqualTo(SubmissionStatus.ROUTED);
+        assertThat(s.uwSubmissionRef()).isNull();
     }
 
     private static PartyRef argThatParty(String name) {

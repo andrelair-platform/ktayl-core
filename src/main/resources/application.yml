@@ -122,3 +122,17 @@ screening:
   yente:
     base-url: ${SCREENING_YENTE_BASE_URL:http://yente.yente.svc:8000}
   match-threshold: ${SCREENING_MATCH_THRESHOLD:0.70}
+
+# Underwriting handoff (SUB-02): route() hands a ROUTED submission off to the underwriting (#12) service,
+# creating a real UW submission from the exposure dossier. base-url defaults to the in-cluster underwriting
+# service. DEV: underwriting's API auth is OFF — the handoff calls UNAUTHENTICATED (no bearer token).
+# TODO(SUB-02-prod): the prod increment adds the OAuth2 client-credentials token for underwriting (its API
+# auth is ON in prod). The M2M pattern mirrors underwriting→ktayl-core (ADR-016): a client-credentials grant
+# against Authentik, a token provider on the adapter. Uncomment + wire when promoting SUB-02 to prod:
+# underwriting:
+#   oauth2:
+#     token-uri:     ${UNDERWRITING_OAUTH_TOKEN_URI:}
+#     client-id:     ${UNDERWRITING_OAUTH_CLIENT_ID:}
+#     client-secret: ${UNDERWRITING_OAUTH_CLIENT_SECRET:}   # ESO→Vault secret/platform/ktayl-core
+underwriting:
+  base-url: ${UNDERWRITING_BASE_URL:http://underwriting.underwriting.svc:8080}

@@ -10,9 +10,10 @@ import java.math.BigDecimal;
  * @param tivAmount   total insured value at the site (required, positive)
  * @param currency    currency of the TIV (required)
  * @param occupancy   the site's occupancy / use (nullable)
+ * @param postcode    the site's postcode (nullable; completes the underwriting handoff dossier)
  * @param lossHistory free-text loss history for the site (nullable)
  * @param catFlag     whether the site is geo-CAT exposed
  */
 public record AddExposureCommand(String siteName, String country, BigDecimal tivAmount, String currency,
-        String occupancy, String lossHistory, boolean catFlag) {
+        String occupancy, String postcode, String lossHistory, boolean catFlag) {
 }

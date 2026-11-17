@@ -19,12 +19,14 @@ public final class ExposureItem {
     private final BigDecimal tivAmount;   // total insured value at the site
     private final String currency;
     private final String occupancy;       // nullable
+    private final String postcode;        // nullable — the site's postcode (completes the UW handoff dossier)
     private final String lossHistory;     // nullable, free text
     private final boolean catFlag;        // geo-CAT exposed
     private final Instant createdAt;
 
     private ExposureItem(UUID id, UUID submissionId, String siteName, String country, BigDecimal tivAmount,
-            String currency, String occupancy, String lossHistory, boolean catFlag, Instant createdAt) {
+            String currency, String occupancy, String postcode, String lossHistory, boolean catFlag,
+            Instant createdAt) {
         this.id = id;
         this.submissionId = submissionId;
         this.siteName = siteName;
@@ -32,6 +34,7 @@ public final class ExposureItem {
         this.tivAmount = tivAmount;
         this.currency = currency;
         this.occupancy = occupancy;
+        this.postcode = postcode;
         this.lossHistory = lossHistory;
         this.catFlag = catFlag;
         this.createdAt = createdAt;
@@ -44,7 +47,8 @@ public final class ExposureItem {
      * @throws InvalidSubmissionException if the site name/country/currency is blank or the TIV is null/≤ 0
      */
     public static ExposureItem create(UUID submissionId, String siteName, String country, BigDecimal tivAmount,
-            String currency, String occupancy, String lossHistory, boolean catFlag, Instant now) {
+            String currency, String occupancy, String postcode, String lossHistory, boolean catFlag,
+            Instant now) {
         if (siteName == null || siteName.isBlank()) {
             throw new InvalidSubmissionException("site name is required");
         }
@@ -58,14 +62,15 @@ public final class ExposureItem {
             throw new InvalidSubmissionException("currency is required");
         }
         return new ExposureItem(UUID.randomUUID(), submissionId, siteName.strip(), country.strip(), tivAmount,
-                currency.strip(), occupancy == null ? null : occupancy.strip(), lossHistory, catFlag, now);
+                currency.strip(), occupancy == null ? null : occupancy.strip(),
+                postcode == null ? null : postcode.strip(), lossHistory, catFlag, now);
     }
 
     /** Rebuild an exposure item from persisted state (used only by the persistence adapter). */
     public static ExposureItem rehydrate(UUID id, UUID submissionId, String siteName, String country,
-            BigDecimal tivAmount, String currency, String occupancy, String lossHistory, boolean catFlag,
-            Instant createdAt) {
-        return new ExposureItem(id, submissionId, siteName, country, tivAmount, currency, occupancy,
+            BigDecimal tivAmount, String currency, String occupancy, String postcode, String lossHistory,
+            boolean catFlag, Instant createdAt) {
+        return new ExposureItem(id, submissionId, siteName, country, tivAmount, currency, occupancy, postcode,
                 lossHistory, catFlag, createdAt);
     }
 
@@ -76,6 +81,7 @@ public final class ExposureItem {
     public BigDecimal tivAmount() { return tivAmount; }
     public String currency() { return currency; }
     public String occupancy() { return occupancy; }
+    public String postcode() { return postcode; }
     public String lossHistory() { return lossHistory; }
     public boolean catFlag() { return catFlag; }
     public Instant createdAt() { return createdAt; }
