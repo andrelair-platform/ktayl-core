@@ -135,4 +135,6 @@ screening:
 #     client-id:     ${UNDERWRITING_OAUTH_CLIENT_ID:}
 #     client-secret: ${UNDERWRITING_OAUTH_CLIENT_SECRET:}   # ESO→Vault secret/platform/ktayl-core
 underwriting:
-  base-url: ${UNDERWRITING_BASE_URL:http://underwriting.underwriting.svc:8080}
+  # The underwriting FastAPI backend Service is `ktayl-underwriting` (NOT `underwriting`), port 80 → pod 8000.
+  # Dev default below; prod overrides UNDERWRITING_BASE_URL → ktayl-underwriting.underwriting-prod.svc:80.
+  base-url: ${UNDERWRITING_BASE_URL:http://ktayl-underwriting.underwriting.svc:80}
