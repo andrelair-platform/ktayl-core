@@ -14,6 +14,7 @@
 | screening_hold     | boolean                  | false   | false    |                                                                                                                         |         |         |
 | status             | varchar(16)              |         | false    |                                                                                                                         |         |         |
 | updated_at         | timestamp with time zone | now()   | false    |                                                                                                                         |         |         |
+| uw_submission_ref  | varchar(64)              |         | true     |                                                                                                                         |         |         |
 
 ## Constraints
 
@@ -47,6 +48,7 @@ erDiagram
   boolean screening_hold
   varchar_16_ status
   timestamp_with_time_zone updated_at
+  varchar_64_ uw_submission_ref
 }
 "submission.exposure_item" {
   boolean cat_flag
@@ -56,6 +58,7 @@ erDiagram
   uuid id
   text loss_history
   varchar_128_ occupancy
+  varchar_16_ postcode
   varchar_256_ site_name
   uuid submission_id FK
   numeric_18_2_ tiv_amount

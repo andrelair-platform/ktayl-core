@@ -11,6 +11,7 @@
 | id            | uuid                     |         | false    |          |                                                   |         |
 | loss_history  | text                     |         | true     |          |                                                   |         |
 | occupancy     | varchar(128)             |         | true     |          |                                                   |         |
+| postcode      | varchar(16)              |         | true     |          |                                                   |         |
 | site_name     | varchar(256)             |         | false    |          |                                                   |         |
 | submission_id | uuid                     |         | false    |          | [submission.submission](submission.submission.md) |         |
 | tiv_amount    | numeric(18,2)            |         | false    |          |                                                   |         |
@@ -44,6 +45,7 @@ erDiagram
   uuid id
   text loss_history
   varchar_128_ occupancy
+  varchar_16_ postcode
   varchar_256_ site_name
   uuid submission_id FK
   numeric_18_2_ tiv_amount
@@ -59,6 +61,7 @@ erDiagram
   boolean screening_hold
   varchar_16_ status
   timestamp_with_time_zone updated_at
+  varchar_64_ uw_submission_ref
 }
 ```
 

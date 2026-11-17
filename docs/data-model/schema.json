@@ -1744,6 +1744,11 @@
           "nullable": true
         },
         {
+          "name": "postcode",
+          "type": "varchar(16)",
+          "nullable": true
+        },
+        {
           "name": "site_name",
           "type": "varchar(256)",
           "nullable": false
@@ -1859,6 +1864,11 @@
           "type": "timestamp with time zone",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "uw_submission_ref",
+          "type": "varchar(64)",
+          "nullable": true
         }
       ],
       "indexes": [
