@@ -61,9 +61,13 @@ server:
 # ktayl-core's own (human SSO, external host) + each M2M consumer's issuer (internal-host form, trailing
 # slash — what an in-cluster client-credentials token carries). A new M2M consumer = add its iss to
 # AUTHENTIK_TRUSTED_ISSUERS (no code change). Defaults cover dev: ktayl-core SSO + underwriting's bind client.
+# NB: the internal-host issuer has NO `:80` — Authentik stamps `iss` from the request Host and drops the
+# default port, so the token's iss is `…authentik.svc/application/o/<app>/`. A `:80` here fails the exact
+# match → 401 (this silently broke underwriting→ktayl-core-prod binding until 2026-11-17, found by the
+# live prod bind-gate test; the prod values override is now redundant with this corrected default).
 ktayl:
   security:
-    trusted-issuers: ${AUTHENTIK_TRUSTED_ISSUERS:https://auth.devandre.sbs/application/o/ktayl-core/,http://authentik-server.authentik.svc:80/application/o/ktayl-underwriting/}
+    trusted-issuers: ${AUTHENTIK_TRUSTED_ISSUERS:https://auth.devandre.sbs/application/o/ktayl-core/,http://authentik-server.authentik.svc/application/o/ktayl-underwriting/}
 
 # Billing ingest (ADR-003): durable JetStream consumer of the UW bound-risk event.
 # PROD sets billing.nats.url (authoritative consumer); dev leaves it BLANK → consumer disabled
