@@ -1,0 +1,111 @@
+openapi: 3.0.3
+info:
+  title: ktayl-core — Finance Close API
+  version: "0.1.0"
+  description: >
+    Finance period-close module (FINCLOSE-01) of the ktayl-core modular monolith — the period-end layer on
+    top of billing. Both endpoints are read-only: a per-period GL reconciliation (billing's subledger POSTED
+    total vs the ERPNext GL total, the drift, and the count/total of stuck postings) and the premium register
+    (gross premium invoiced, cash received, receivable outstanding). Money is minor units (eurocents),
+    integer, never a float. Period is `YYYY-MM`; a malformed period → 400. All endpoints require an Authentik
+    OIDC bearer token (401 without one) AND membership of the `Finance` group (authority `GROUP_Finance`) — a
+    token without it → 403. If the ERPNext GL is unreachable/unconfigured the GL side is reported
+    `UNAVAILABLE` (never a 5xx); the subledger view is always available. Per-module contract (Billing's is
+    api/openapi.yaml). Hand-maintained to match
+    com.ktayl.core.finance.infrastructure.web.FinanceController + its FinanceExceptionHandler; verified by the
+    L3 contract test.
+servers:
+  - url: https://ktayl-core.10.0.0.200.nip.io
+    description: dev (internal — Tailscale + minicloud CA; host finalised per env)
+security:
+  - bearerAuth: []
+paths:
+  /api/finance/periods/{period}/reconciliation:
+    get:
+      summary: GL reconciliation for a period
+      description: >
+        The billing subledger POSTED total vs the GL (ERPNext) total for the period, the drift between them,
+        and the count/total of unposted ("stuck") postings. `glStatus` is RECONCILED (drift 0), DRIFT
+        (non-zero), or UNAVAILABLE (GL unreadable — then `glPostedMinor` is null and `driftMinor` is 0).
+      operationId: getPeriodReconciliation
+      parameters:
+        - $ref: '#/components/parameters/Period'
+      responses:
+        '200':
+          description: The reconciliation summary.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodReconciliation' }
+        '400': { $ref: '#/components/responses/BadPeriod' }
+        '401': { description: No/invalid bearer token. }
+        '403': { description: Authenticated but not in the Finance group. }
+  /api/finance/periods/{period}/register:
+    get:
+      summary: Premium register for a period
+      description: Gross premium invoiced, cash received, and receivable outstanding (invoiced − received) for the period.
+      operationId: getPremiumRegister
+      parameters:
+        - $ref: '#/components/parameters/Period'
+      responses:
+        '200':
+          description: The premium register.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PremiumRegister' }
+        '400': { $ref: '#/components/responses/BadPeriod' }
+        '401': { description: No/invalid bearer token. }
+        '403': { description: Authenticated but not in the Finance group. }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Period:
+      name: period
+      in: path
+      required: true
+      description: Accounting period, `YYYY-MM`.
+      schema: { type: string, pattern: '^[0-9]{4}-[0-9]{2}$', example: '2026-10' }
+  responses:
+    BadPeriod:
+      description: Malformed period (not `YYYY-MM`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+  schemas:
+    PeriodReconciliation:
+      type: object
+      required: [period, periodStatus, subledgerPostedMinor, glStatus, driftMinor, pendingCount, pendingMinor, failedCount, failedMinor, unexpectedCurrencies]
+      properties:
+        period: { type: string, example: '2026-10' }
+        periodStatus: { type: string, enum: [OPEN, CLOSED], description: 'A period with no registry row is implicitly OPEN (close/lock = FINCLOSE-02).' }
+        subledgerPostedMinor: { type: integer, format: int64, description: 'Σ POSTED across event types (eurocents) — what should be in the GL.' }
+        glPostedMinor: { type: integer, format: int64, nullable: true, description: 'GL total; null when glStatus is UNAVAILABLE.' }
+        glStatus: { type: string, enum: [RECONCILED, DRIFT, UNAVAILABLE] }
+        driftMinor: { type: integer, format: int64, description: 'subledgerPostedMinor − glPostedMinor; 0 when reconciled or unavailable.' }
+        pendingCount: { type: integer, format: int64 }
+        pendingMinor: { type: integer, format: int64 }
+        failedCount: { type: integer, format: int64, description: 'Postings drained at least once and still unposted (stuck).' }
+        failedMinor: { type: integer, format: int64 }
+        unexpectedCurrencies:
+          type: array
+          items: { type: string }
+          description: 'Non-EUR currencies seen in the period (single-currency guard); normally empty.'
+    PremiumRegister:
+      type: object
+      required: [period, grossPremiumInvoicedMinor, cashReceivedMinor, receivableOutstandingMinor, currency]
+      properties:
+        period: { type: string, example: '2026-10' }
+        grossPremiumInvoicedMinor: { type: integer, format: int64 }
+        cashReceivedMinor: { type: integer, format: int64 }
+        receivableOutstandingMinor: { type: integer, format: int64, description: 'invoiced − received for the period (may be negative).' }
+        currency: { type: string, example: 'EUR' }
+    ProblemDetail:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
