@@ -29,7 +29,7 @@ auditor or interviewer actually asks for.
 |---|---|---|---|---|
 | FINCLOSE-00 | EPIC: Finance close & GL reconciliation (`finance` module) | Epic | P2 | Ready |
 | FINCLOSE-01 | `finance` module scaffold + GL reconciliation report & premium register | Story | P2 | Ready |
-| FINCLOSE-02 | Accounting-period lifecycle + period close (lock + closing audit) | Story | P3 | Draft (decompose) |
+| FINCLOSE-02 | Accounting-period close/reopen with an immutable closing audit | Story | P3 | Ready |
 | FINCLOSE-03 | Close-dashboard read API + outbox-drift alerting | Story | P3 | Draft (decompose) |
 
 **Explicitly deferred (not this sprint):** FIN-02 IFRS 17 (large — likely adopt, not build), FIN-03
