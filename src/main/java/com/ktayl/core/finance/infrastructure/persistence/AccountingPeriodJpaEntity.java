@@ -27,6 +27,16 @@ class AccountingPeriodJpaEntity {
 
     protected AccountingPeriodJpaEntity() {} // JPA
 
+    AccountingPeriodJpaEntity(String period, String status, Instant createdAt) {
+        this.period = period;
+        this.status = status;
+        this.createdAt = createdAt;
+    }
+
+    void setStatus(String status) {
+        this.status = status;
+    }
+
     String getPeriod() {
         return period;
     }

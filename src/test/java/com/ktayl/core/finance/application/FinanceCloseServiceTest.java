@@ -11,6 +11,7 @@ import com.ktayl.core.billing.ledgerview.LedgerReconciliationView;
 import com.ktayl.core.finance.api.PeriodReconciliation;
 import com.ktayl.core.finance.api.PremiumRegister;
 import com.ktayl.core.finance.domain.AccountingPeriodPort;
+import com.ktayl.core.finance.domain.ClosingAuditPort;
 import com.ktayl.core.finance.domain.GeneralLedgerReadPort;
 import java.time.YearMonth;
 import java.util.List;
@@ -31,9 +32,10 @@ class FinanceCloseServiceTest {
 
     private final LedgerReconciliationView view = mock(LedgerReconciliationView.class);
     private final AccountingPeriodPort periods = mock(AccountingPeriodPort.class);
+    private final ClosingAuditPort closingAudit = mock(ClosingAuditPort.class);
     @SuppressWarnings("unchecked")
     private final ObjectProvider<GeneralLedgerReadPort> glProvider = mock(ObjectProvider.class);
-    private final FinanceCloseService service = new FinanceCloseService(view, periods, glProvider);
+    private final FinanceCloseService service = new FinanceCloseService(view, periods, closingAudit, glProvider);
 
     @BeforeEach
     void stubSummary() {

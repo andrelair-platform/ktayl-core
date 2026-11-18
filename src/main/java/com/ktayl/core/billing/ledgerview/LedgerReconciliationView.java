@@ -1,5 +1,6 @@
 package com.ktayl.core.billing.ledgerview;
 
+import java.time.Instant;
 import java.time.YearMonth;
 
 /**
@@ -37,4 +38,12 @@ public interface LedgerReconciliationView {
 
     /** The reconciliation summary for {@code period} (never null; empty buckets if the period has no postings). */
     LedgerReconciliationSummary summarize(YearMonth period);
+
+    /**
+     * How many postings attributed to {@code period} were posted to the GL <b>after</b> {@code postedAfter}
+     * (FINCLOSE-02) — the post-close-movement signal: a finance period closed at {@code postedAfter} expects
+     * this to be 0 (its subledger was settled at close). A non-zero count means a posting moved after the
+     * period was closed, which the reconciliation flags for review.
+     */
+    long countPostedAfter(YearMonth period, Instant postedAfter);
 }
