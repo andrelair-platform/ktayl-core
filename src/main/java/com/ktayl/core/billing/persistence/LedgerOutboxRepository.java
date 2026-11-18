@@ -1,5 +1,6 @@
 package com.ktayl.core.billing.persistence;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Limit;
@@ -11,4 +12,11 @@ public interface LedgerOutboxRepository extends JpaRepository<LedgerOutboxEntity
     List<LedgerOutboxEntity> findByStatusOrderByCreatedAt(String status, Limit limit);
 
     boolean existsByEventTypeAndReference(String eventType, String reference);
+
+    /**
+     * Every posting whose {@code created_at} falls in the half-open window {@code [start, end)} — the
+     * accounting-period slice the ledger reconciliation view aggregates (FINCLOSE-01). Half-open so a
+     * posting at a month boundary belongs to exactly one period.
+     */
+    List<LedgerOutboxEntity> findByCreatedAtGreaterThanEqualAndCreatedAtLessThan(Instant start, Instant end);
 }
