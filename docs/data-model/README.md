@@ -16,6 +16,7 @@
 | [complaints.audit_log](complaints.audit_log.md)                 | 7       |         | BASE TABLE |
 | [complaints.complaint](complaints.complaint.md)                 | 10      |         | BASE TABLE |
 | [complaints.schema_marker](complaints.schema_marker.md)         | 2       |         | BASE TABLE |
+| [finance.accounting_period](finance.accounting_period.md)       | 3       |         | BASE TABLE |
 | [policy.policy](policy.policy.md)                               | 9       |         | BASE TABLE |
 | [policy.policy_audit_log](policy.policy_audit_log.md)           | 8       |         | BASE TABLE |
 | [screening.alert](screening.alert.md)                           | 5       |         | BASE TABLE |
@@ -149,6 +150,11 @@ erDiagram
 "complaints.schema_marker" {
   timestamp_with_time_zone initialized
   varchar_64_ module
+}
+"finance.accounting_period" {
+  timestamp_with_time_zone created_at
+  varchar_7_ period
+  varchar_16_ status
 }
 "policy.policy" {
   timestamp_with_time_zone created_at

@@ -1041,6 +1041,61 @@
       ]
     },
     {
+      "name": "finance.accounting_period",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "period",
+          "type": "varchar(7)",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "varchar(16)",
+          "nullable": false,
+          "default": "'open'::character varying"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "accounting_period_pkey",
+          "def": "CREATE UNIQUE INDEX accounting_period_pkey ON finance.accounting_period USING btree (period)",
+          "table": "finance.accounting_period",
+          "columns": [
+            "period"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "accounting_period_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (period)",
+          "table": "finance.accounting_period",
+          "referenced_table": "",
+          "columns": [
+            "period"
+          ]
+        },
+        {
+          "name": "accounting_period_status_check",
+          "type": "CHECK",
+          "def": "CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'closed'::character varying])::text[])))",
+          "table": "finance.accounting_period",
+          "referenced_table": "",
+          "columns": [
+            "status"
+          ]
+        }
+      ]
+    },
+    {
       "name": "policy.policy",
       "type": "BASE TABLE",
       "columns": [
