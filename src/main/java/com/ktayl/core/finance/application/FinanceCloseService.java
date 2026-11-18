@@ -7,7 +7,9 @@ import com.ktayl.core.finance.api.PeriodReconciliation;
 import com.ktayl.core.finance.api.PremiumRegister;
 import com.ktayl.core.finance.domain.AccountingPeriodPort;
 import com.ktayl.core.finance.domain.CloseArithmetic;
+import com.ktayl.core.finance.domain.ClosingAuditPort;
 import com.ktayl.core.finance.domain.GeneralLedgerReadPort;
+import java.time.Instant;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.OptionalLong;
@@ -34,12 +36,14 @@ public class FinanceCloseService implements FinanceCloseOperations {
 
     private final LedgerReconciliationView ledgerView;
     private final AccountingPeriodPort periods;
+    private final ClosingAuditPort closingAudit;
     private final ObjectProvider<GeneralLedgerReadPort> gl;
 
     public FinanceCloseService(LedgerReconciliationView ledgerView, AccountingPeriodPort periods,
-            ObjectProvider<GeneralLedgerReadPort> gl) {
+            ClosingAuditPort closingAudit, ObjectProvider<GeneralLedgerReadPort> gl) {
         this.ledgerView = ledgerView;
         this.periods = periods;
+        this.closingAudit = closingAudit;
         this.gl = gl;
     }
 
@@ -66,9 +70,14 @@ public class FinanceCloseService implements FinanceCloseOperations {
             glStatus = "UNAVAILABLE";
         }
 
-        return new PeriodReconciliation(period.toString(), periods.statusOf(period), subledgerPosted,
+        String periodStatus = periods.statusOf(period);
+        Instant lastClosedAt = closingAudit.lastClosedAt(period).orElse(null);
+        boolean postCloseMovement = "CLOSED".equals(periodStatus) && lastClosedAt != null
+                && ledgerView.countPostedAfter(period, lastClosedAt) > 0;
+
+        return new PeriodReconciliation(period.toString(), periodStatus, subledgerPosted,
                 glPostedMinor, glStatus, driftMinor, pendingCount, pendingMinor, failedCount, failedMinor,
-                unexpectedCurrencies);
+                unexpectedCurrencies, lastClosedAt, postCloseMovement);
     }
 
     @Override

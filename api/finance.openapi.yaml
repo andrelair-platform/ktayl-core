@@ -55,6 +55,81 @@ paths:
         '400': { $ref: '#/components/responses/BadPeriod' }
         '401': { description: No/invalid bearer token. }
         '403': { description: Authenticated but not in the Finance group. }
+  /api/finance/periods/{period}/close:
+    post:
+      summary: Close a period
+      description: >
+        Close an OPEN period. Preconditions (each a 409): the period has ended, the subledger is settled (no
+        pending/failed postings), and the GL reconciles — a GL drift may be overridden with `force` + a
+        `reason`. Records an immutable closing-audit entry with the attested figures. The close is a
+        control/attestation, not a physical lock on billing (ADR-019).
+      operationId: closePeriod
+      parameters:
+        - $ref: '#/components/parameters/Period'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CloseRequest' }
+      responses:
+        '204': { description: Closed. }
+        '400': { $ref: '#/components/responses/BadPeriod' }
+        '401': { description: No/invalid bearer token. }
+        '403': { description: Authenticated but not in the Finance group. }
+        '409':
+          description: Precondition failed (not ended / not settled / GL drift not forced) or already closed.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+        '422':
+          description: Forced close without a reason.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+    get:
+      summary: Close/reopen history for a period
+      description: The ordered close/reopen audit entries for the period (empty if never closed).
+      operationId: getPeriodCloseHistory
+      parameters:
+        - $ref: '#/components/parameters/Period'
+      responses:
+        '200':
+          description: The close/reopen history.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PeriodCloseRecord' }
+        '400': { $ref: '#/components/responses/BadPeriod' }
+        '401': { description: No/invalid bearer token. }
+        '403': { description: Authenticated but not in the Finance group. }
+  /api/finance/periods/{period}/reopen:
+    post:
+      summary: Reopen a period
+      description: Reopen a CLOSED period (reason required); records a REOPENED audit entry.
+      operationId: reopenPeriod
+      parameters:
+        - $ref: '#/components/parameters/Period'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReopenRequest' }
+      responses:
+        '204': { description: Reopened. }
+        '400': { $ref: '#/components/responses/BadPeriod' }
+        '401': { description: No/invalid bearer token. }
+        '403': { description: Authenticated but not in the Finance group. }
+        '409':
+          description: The period is not closed.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+        '422':
+          description: Missing reason.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
 components:
   securitySchemes:
     bearerAuth:
@@ -77,7 +152,7 @@ components:
   schemas:
     PeriodReconciliation:
       type: object
-      required: [period, periodStatus, subledgerPostedMinor, glStatus, driftMinor, pendingCount, pendingMinor, failedCount, failedMinor, unexpectedCurrencies]
+      required: [period, periodStatus, subledgerPostedMinor, glStatus, driftMinor, pendingCount, pendingMinor, failedCount, failedMinor, unexpectedCurrencies, postCloseMovement]
       properties:
         period: { type: string, example: '2026-10' }
         periodStatus: { type: string, enum: [OPEN, CLOSED], description: 'A period with no registry row is implicitly OPEN (close/lock = FINCLOSE-02).' }
@@ -93,6 +168,8 @@ components:
           type: array
           items: { type: string }
           description: 'Non-EUR currencies seen in the period (single-currency guard); normally empty.'
+        lastClosedAt: { type: string, format: date-time, nullable: true, description: 'When the period was last closed (null if never).' }
+        postCloseMovement: { type: boolean, description: 'A posting reached the GL after the period was closed (integrity signal; expected false).' }
     PremiumRegister:
       type: object
       required: [period, grossPremiumInvoicedMinor, cashReceivedMinor, receivableOutstandingMinor, currency]
@@ -102,6 +179,31 @@ components:
         cashReceivedMinor: { type: integer, format: int64 }
         receivableOutstandingMinor: { type: integer, format: int64, description: 'invoiced − received for the period (may be negative).' }
         currency: { type: string, example: 'EUR' }
+    CloseRequest:
+      type: object
+      description: Optional body for a close. `force` + `reason` override a GL drift precondition.
+      properties:
+        force: { type: boolean, default: false }
+        reason: { type: string, description: 'Required when force is true.' }
+    ReopenRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string }
+    PeriodCloseRecord:
+      type: object
+      required: [period, action, actor, at, forced]
+      properties:
+        period: { type: string, example: '2026-10' }
+        action: { type: string, enum: [CLOSED, REOPENED] }
+        actor: { type: string }
+        at: { type: string, format: date-time }
+        subledgerPostedMinor: { type: integer, format: int64, nullable: true, description: 'Attested at close; null for REOPENED.' }
+        glPostedMinor: { type: integer, format: int64, nullable: true }
+        driftMinor: { type: integer, format: int64, nullable: true }
+        glStatus: { type: string, nullable: true }
+        forced: { type: boolean }
+        reason: { type: string, nullable: true }
     ProblemDetail:
       type: object
       properties:
