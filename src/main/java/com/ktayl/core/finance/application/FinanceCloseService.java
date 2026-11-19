@@ -11,6 +11,7 @@ import com.ktayl.core.finance.domain.ClosingAuditPort;
 import com.ktayl.core.finance.domain.GeneralLedgerReadPort;
 import java.time.Instant;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalLong;
 import org.slf4j.Logger;
@@ -78,6 +79,15 @@ public class FinanceCloseService implements FinanceCloseOperations {
         return new PeriodReconciliation(period.toString(), periodStatus, subledgerPosted,
                 glPostedMinor, glStatus, driftMinor, pendingCount, pendingMinor, failedCount, failedMinor,
                 unexpectedCurrencies, lastClosedAt, postCloseMovement);
+    }
+
+    @Override
+    public List<PeriodReconciliation> dashboard(YearMonth from, YearMonth to) {
+        List<PeriodReconciliation> rows = new ArrayList<>();
+        for (YearMonth p = from; !p.isAfter(to); p = p.plusMonths(1)) {
+            rows.add(reconcile(p));
+        }
+        return rows;
     }
 
     @Override

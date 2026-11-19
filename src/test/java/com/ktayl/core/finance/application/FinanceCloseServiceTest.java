@@ -109,6 +109,19 @@ class FinanceCloseServiceTest {
     }
 
     @Test
+    void dashboard_returns_one_row_per_period_in_the_inclusive_range() {
+        when(view.summarize(any())).thenAnswer(inv ->
+                new LedgerReconciliationSummary(inv.getArgument(0), List.of(), Set.of()));
+        when(periods.statusOf(any())).thenReturn("OPEN");
+        when(glProvider.getIfAvailable()).thenReturn(null);
+
+        var rows = service.dashboard(YearMonth.of(2026, 8), YearMonth.of(2026, 10));
+
+        assertThat(rows).extracting(PeriodReconciliation::period)
+                .containsExactly("2026-08", "2026-09", "2026-10");
+    }
+
+    @Test
     void register_ties_out_invoiced_received_outstanding() {
         PremiumRegister reg = service.register(OCT);
 

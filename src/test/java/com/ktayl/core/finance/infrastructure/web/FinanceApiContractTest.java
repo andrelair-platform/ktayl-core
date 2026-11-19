@@ -132,4 +132,26 @@ class FinanceApiContractTest {
         mvc.perform(get("/api/finance/periods/2026-10/close").with(financeOfficer()))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    void dashboard_returns_200_with_a_row_per_period() throws Exception {
+        when(finance.dashboard(any(), any())).thenReturn(List.of(new PeriodReconciliation(
+                "2026-10", "OPEN", 1L, null, "UNAVAILABLE", 0L, 0L, 0L, 0L, 0L, List.of(), null, false)));
+
+        mvc.perform(get("/api/finance/dashboard?from=2026-10&to=2026-10").with(financeOfficer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].period").value("2026-10"));
+    }
+
+    @Test
+    void dashboard_from_after_to_is_400() throws Exception {
+        mvc.perform(get("/api/finance/dashboard?from=2026-10&to=2026-08").with(financeOfficer()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void dashboard_range_too_wide_is_400() throws Exception {
+        mvc.perform(get("/api/finance/dashboard?from=2020-01&to=2026-12").with(financeOfficer()))
+                .andExpect(status().isBadRequest());
+    }
 }

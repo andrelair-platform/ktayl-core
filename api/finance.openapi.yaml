@@ -55,6 +55,32 @@ paths:
         '400': { $ref: '#/components/responses/BadPeriod' }
         '401': { description: No/invalid bearer token. }
         '403': { description: Authenticated but not in the Finance group. }
+  /api/finance/dashboard:
+    get:
+      summary: Close dashboard across a period range
+      description: >
+        The reconciliation for every period in the inclusive range `[from, to]`, oldest first (FINCLOSE-03).
+        Defaults to the last 6 periods ending this month. The range is capped at 24 periods; `from > to` or an
+        over-wide range → 400.
+      operationId: getCloseDashboard
+      parameters:
+        - { name: from, in: query, required: false, schema: { type: string, pattern: '^[0-9]{4}-[0-9]{2}$' }, description: 'Start period YYYY-MM (default: to − 5 months).' }
+        - { name: to, in: query, required: false, schema: { type: string, pattern: '^[0-9]{4}-[0-9]{2}$' }, description: 'End period YYYY-MM (default: current month).' }
+      responses:
+        '200':
+          description: One reconciliation per period in range.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PeriodReconciliation' }
+        '400':
+          description: Malformed period, from > to, or range too wide (> 24 periods).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+        '401': { description: No/invalid bearer token. }
+        '403': { description: Authenticated but not in the Finance group. }
   /api/finance/periods/{period}/close:
     post:
       summary: Close a period

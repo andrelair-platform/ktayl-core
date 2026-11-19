@@ -1,6 +1,7 @@
 package com.ktayl.core.finance.api;
 
 import java.time.YearMonth;
+import java.util.List;
 
 /**
  * The finance module's published inbound port (FINCLOSE-01) — the period-close read operations, driven by the
@@ -18,4 +19,10 @@ public interface FinanceCloseOperations {
 
     /** The period premium register: gross premium invoiced, cash received, receivable outstanding. */
     PremiumRegister register(YearMonth period);
+
+    /**
+     * The close dashboard (FINCLOSE-03): the reconciliation for every period in the inclusive range
+     * {@code [from, to]}, oldest first. The caller bounds the range (the web adapter caps it).
+     */
+    List<PeriodReconciliation> dashboard(YearMonth from, YearMonth to);
 }
