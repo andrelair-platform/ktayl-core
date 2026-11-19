@@ -1096,6 +1096,110 @@
       ]
     },
     {
+      "name": "finance.period_close_audit",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "action",
+          "type": "varchar(16)",
+          "nullable": false
+        },
+        {
+          "name": "actor",
+          "type": "varchar(128)",
+          "nullable": false
+        },
+        {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "drift_minor",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "forced",
+          "type": "boolean",
+          "nullable": false,
+          "default": "false"
+        },
+        {
+          "name": "gl_posted_minor",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "gl_status",
+          "type": "varchar(16)",
+          "nullable": true
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "period",
+          "type": "varchar(7)",
+          "nullable": false
+        },
+        {
+          "name": "reason",
+          "type": "varchar(500)",
+          "nullable": true
+        },
+        {
+          "name": "subledger_posted_minor",
+          "type": "bigint",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_period_close_audit_period",
+          "def": "CREATE INDEX idx_period_close_audit_period ON finance.period_close_audit USING btree (period, at)",
+          "table": "finance.period_close_audit",
+          "columns": [
+            "period",
+            "at"
+          ]
+        },
+        {
+          "name": "period_close_audit_pkey",
+          "def": "CREATE UNIQUE INDEX period_close_audit_pkey ON finance.period_close_audit USING btree (id)",
+          "table": "finance.period_close_audit",
+          "columns": [
+            "id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "period_close_audit_action_check",
+          "type": "CHECK",
+          "def": "CHECK (((action)::text = ANY ((ARRAY['CLOSED'::character varying, 'REOPENED'::character varying])::text[])))",
+          "table": "finance.period_close_audit",
+          "referenced_table": "",
+          "columns": [
+            "action"
+          ]
+        },
+        {
+          "name": "period_close_audit_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "finance.period_close_audit",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
       "name": "policy.policy",
       "type": "BASE TABLE",
       "columns": [
