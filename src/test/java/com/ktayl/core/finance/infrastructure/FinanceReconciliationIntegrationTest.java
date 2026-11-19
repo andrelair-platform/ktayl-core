@@ -10,6 +10,7 @@ import com.ktayl.core.finance.api.FinanceCloseOperations;
 import com.ktayl.core.finance.api.PeriodReconciliation;
 import com.ktayl.core.finance.api.PremiumRegister;
 import com.ktayl.core.finance.domain.GeneralLedgerReadPort;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.util.OptionalLong;
@@ -51,6 +52,7 @@ class FinanceReconciliationIntegrationTest {
     @Autowired FinanceCloseOperations finance;
     @Autowired LedgerOutboxRepository outbox;
     @Autowired ToggleableGl gl;
+    @Autowired MeterRegistry meters;
 
     private static final YearMonth OCT = YearMonth.of(2026, 10);
     private static final Instant IN_OCT = Instant.parse("2026-10-15T10:00:00Z");
@@ -112,6 +114,24 @@ class FinanceReconciliationIntegrationTest {
     private static LedgerOutboxEntity pending(String eventType, long minor, Instant at) {
         // reference must be unique — the outbox has UNIQUE(event_type, reference)
         return new LedgerOutboxEntity(UUID.randomUUID(), eventType, "ref-" + UUID.randomUUID(), minor, "EUR", at);
+    }
+
+    @Test
+    void gl_outbox_gauges_and_the_dashboard_over_real_postgres() {
+        Instant in = Instant.parse("2026-10-10T10:00:00Z");
+        outbox.save(posted(EVENT_PREMIUM_INVOICED, 100_000, in));
+        outbox.save(pending(EVENT_PREMIUM_INVOICED, 50_000, in));  // pending, 0 attempts
+        outbox.save(failed(EVENT_PAYMENT_CAPTURED, 30_000, in));   // pending, attempts > 0 → FAILED
+
+        // gauges (FINCLOSE-03): both unposted rows are status=pending (backlog 2); one is stuck (failed 1)
+        assertThat(meters.get("ledger.outbox.pending").gauge().value()).isEqualTo(2d);
+        assertThat(meters.get("ledger.outbox.failed").gauge().value()).isEqualTo(1d);
+        assertThat(meters.get("ledger.outbox.oldest_pending_age_seconds").gauge().value()).isGreaterThan(0d);
+
+        // dashboard: one row per period across the inclusive range, oldest first
+        assertThat(finance.dashboard(YearMonth.of(2026, 8), YearMonth.of(2026, 10)))
+                .extracting(PeriodReconciliation::period)
+                .containsExactly("2026-08", "2026-09", "2026-10");
     }
 
     private static LedgerOutboxEntity posted(String eventType, long minor, Instant at) {

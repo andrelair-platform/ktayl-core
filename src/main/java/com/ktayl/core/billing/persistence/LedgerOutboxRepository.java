@@ -31,4 +31,14 @@ public interface LedgerOutboxRepository extends JpaRepository<LedgerOutboxEntity
               and e.status = 'posted' and e.postedAt > :after
             """)
     long countPostedAfter(Instant start, Instant end, Instant after);
+
+    /** Count of outbox rows in a status (GL-outbox health metric, FINCLOSE-03). */
+    long countByStatus(String status);
+
+    /** Count of rows in a status with {@code attempts > n} — the FAILED/stuck gauge (status=pending, n=0). */
+    long countByStatusAndAttemptsGreaterThan(String status, int attempts);
+
+    /** Oldest {@code created_at} among unposted rows, or null if none — drives the oldest-pending-age gauge. */
+    @Query("select min(e.createdAt) from LedgerOutboxEntity e where e.status = 'pending'")
+    Instant findOldestPendingCreatedAt();
 }

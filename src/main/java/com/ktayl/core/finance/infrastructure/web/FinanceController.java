@@ -7,8 +7,11 @@ import com.ktayl.core.finance.api.PeriodReconciliation;
 import com.ktayl.core.finance.api.PremiumRegister;
 import com.ktayl.core.finance.domain.InvalidPeriodException;
 import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -18,7 +21,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Inbound HTTP adapter for the finance module (hexagonal, ADR-013) — maps HTTP onto the published
@@ -32,6 +37,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/finance")
 @PreAuthorize("hasAuthority('GROUP_Finance')")
 public class FinanceController {
+
+    /** Hard cap on the dashboard range so one call can't fan out reconcile over an unbounded span. */
+    static final int MAX_DASHBOARD_PERIODS = 24;
 
     private final FinanceCloseOperations finance;
     private final PeriodCloseOperations periodClose;
@@ -49,6 +57,22 @@ public class FinanceController {
     @GetMapping("/periods/{period}/register")
     public PremiumRegister register(@PathVariable String period) {
         return finance.register(parse(period));
+    }
+
+    /** Close dashboard (FINCLOSE-03): reconciliation across a range; defaults to the last 6 periods. */
+    @GetMapping("/dashboard")
+    public List<PeriodReconciliation> dashboard(@RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        YearMonth toMonth = to != null ? parse(to) : YearMonth.now(ZoneOffset.UTC);
+        YearMonth fromMonth = from != null ? parse(from) : toMonth.minusMonths(5);
+        if (fromMonth.isAfter(toMonth)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from must be <= to");
+        }
+        if (ChronoUnit.MONTHS.between(fromMonth, toMonth) + 1 > MAX_DASHBOARD_PERIODS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "range too wide (max " + MAX_DASHBOARD_PERIODS + " periods)");
+        }
+        return finance.dashboard(fromMonth, toMonth);
     }
 
     @PostMapping("/periods/{period}/close")
