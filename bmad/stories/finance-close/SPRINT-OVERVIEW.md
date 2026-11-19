@@ -30,7 +30,7 @@ auditor or interviewer actually asks for.
 | FINCLOSE-00 | EPIC: Finance close & GL reconciliation (`finance` module) | Epic | P2 | Ready |
 | FINCLOSE-01 | `finance` module scaffold + GL reconciliation report & premium register | Story | P2 | Ready |
 | FINCLOSE-02 | Accounting-period close/reopen with an immutable closing audit | Story | P3 | Ready |
-| FINCLOSE-03 | Close-dashboard read API + outbox-drift alerting | Story | P3 | Draft (decompose) |
+| FINCLOSE-03 | Close dashboard read API + GL outbox-drift metrics & alerting | Story | P3 | Ready |
 
 **Explicitly deferred (not this sprint):** FIN-02 IFRS 17 (large — likely adopt, not build), FIN-03
 actuarial reserving (needs claims reserve data + actuarial model), FIN-04 reinsurance bordereaux (waits on
