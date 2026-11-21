@@ -48,9 +48,13 @@ erDiagram
   varchar_64_ submission_id
 }
 "billing.invoice" {
+  integer commission_bps
+  bigint commission_minor
   varchar_3_ currency
+  bigint gross_minor
   uuid id
   timestamp_with_time_zone issued_at
+  bigint net_minor
   varchar_64_ policy_number FK
   varchar_16_ status
   bigint total_minor

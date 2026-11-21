@@ -2,19 +2,20 @@
 
 ## Columns
 
-| Name         | Type                     | Default                      | Nullable | Children | Parents | Comment |
-| ------------ | ------------------------ | ---------------------------- | -------- | -------- | ------- | ------- |
-| amount_minor | bigint                   |                              | false    |          |         |         |
-| attempts     | integer                  | 0                            | false    |          |         |         |
-| created_at   | timestamp with time zone | now()                        | false    |          |         |         |
-| currency     | varchar(3)               |                              | false    |          |         |         |
-| event_type   | varchar(32)              |                              | false    |          |         |         |
-| id           | uuid                     |                              | false    |          |         |         |
-| last_error   | varchar(500)             |                              | true     |          |         |         |
-| posted_at    | timestamp with time zone |                              | true     |          |         |         |
-| posted_ref   | varchar(140)             |                              | true     |          |         |         |
-| reference    | varchar(80)              |                              | false    |          |         |         |
-| status       | varchar(16)              | 'pending'::character varying | false    |          |         |         |
+| Name             | Type                     | Default                      | Nullable | Children | Parents | Comment |
+| ---------------- | ------------------------ | ---------------------------- | -------- | -------- | ------- | ------- |
+| amount_minor     | bigint                   |                              | false    |          |         |         |
+| attempts         | integer                  | 0                            | false    |          |         |         |
+| commission_minor | bigint                   | 0                            | false    |          |         |         |
+| created_at       | timestamp with time zone | now()                        | false    |          |         |         |
+| currency         | varchar(3)               |                              | false    |          |         |         |
+| event_type       | varchar(32)              |                              | false    |          |         |         |
+| id               | uuid                     |                              | false    |          |         |         |
+| last_error       | varchar(500)             |                              | true     |          |         |         |
+| posted_at        | timestamp with time zone |                              | true     |          |         |         |
+| posted_ref       | varchar(140)             |                              | true     |          |         |         |
+| reference        | varchar(80)              |                              | false    |          |         |         |
+| status           | varchar(16)              | 'pending'::character varying | false    |          |         |         |
 
 ## Constraints
 
@@ -41,6 +42,7 @@ erDiagram
 "billing.ledger_outbox" {
   bigint amount_minor
   integer attempts
+  bigint commission_minor
   timestamp_with_time_zone created_at
   varchar_3_ currency
   varchar_32_ event_type
