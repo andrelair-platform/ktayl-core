@@ -13,7 +13,7 @@
 
     <groupId>com.ktayl</groupId>
     <artifactId>ktayl-core</artifactId>
-    <version>0.1.0</version> <!-- x-release-please-version -->
+    <version>0.1.1</version> <!-- x-release-please-version -->
     <name>ktayl-core</name>
     <description>ktayl-solution insurance-LOB modular monolith (Spring Boot + Spring Modulith)</description>
 
