@@ -13,6 +13,7 @@
 | [billing.payment](billing.payment.md)                           | 9       |         | BASE TABLE |
 | [billing.schema_marker](billing.schema_marker.md)               | 2       |         | BASE TABLE |
 | [billing.webhook_event](billing.webhook_event.md)               | 4       |         | BASE TABLE |
+| [claimsgl.claim_ledger_outbox](claimsgl.claim_ledger_outbox.md) | 12      |         | BASE TABLE |
 | [complaints.audit_log](complaints.audit_log.md)                 | 7       |         | BASE TABLE |
 | [complaints.complaint](complaints.complaint.md)                 | 10      |         | BASE TABLE |
 | [complaints.schema_marker](complaints.schema_marker.md)         | 2       |         | BASE TABLE |
@@ -131,6 +132,20 @@ erDiagram
   varchar_128_ psp_event_id
   timestamp_with_time_zone received_at
   varchar_64_ type
+}
+"claimsgl.claim_ledger_outbox" {
+  bigint amount_minor
+  integer attempts
+  varchar_64_ claim_number
+  timestamp_with_time_zone created_at
+  varchar_3_ currency
+  varchar_32_ event_type
+  uuid id
+  varchar_500_ last_error
+  timestamp_with_time_zone posted_at
+  varchar_140_ posted_ref
+  varchar_80_ reference
+  varchar_16_ status
 }
 "complaints.audit_log" {
   varchar_64_ action
