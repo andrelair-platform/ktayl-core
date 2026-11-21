@@ -905,6 +905,133 @@
       ]
     },
     {
+      "name": "claimsgl.claim_ledger_outbox",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "amount_minor",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "attempts",
+          "type": "integer",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "claim_number",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "currency",
+          "type": "varchar(3)",
+          "nullable": false
+        },
+        {
+          "name": "event_type",
+          "type": "varchar(32)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "last_error",
+          "type": "varchar(500)",
+          "nullable": true
+        },
+        {
+          "name": "posted_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "posted_ref",
+          "type": "varchar(140)",
+          "nullable": true
+        },
+        {
+          "name": "reference",
+          "type": "varchar(80)",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "varchar(16)",
+          "nullable": false,
+          "default": "'pending'::character varying"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "claim_ledger_outbox_pkey",
+          "def": "CREATE UNIQUE INDEX claim_ledger_outbox_pkey ON claimsgl.claim_ledger_outbox USING btree (id)",
+          "table": "claimsgl.claim_ledger_outbox",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "claim_ledger_outbox_reference_key",
+          "def": "CREATE UNIQUE INDEX claim_ledger_outbox_reference_key ON claimsgl.claim_ledger_outbox USING btree (reference)",
+          "table": "claimsgl.claim_ledger_outbox",
+          "columns": [
+            "reference"
+          ]
+        },
+        {
+          "name": "idx_claim_ledger_outbox_pending",
+          "def": "CREATE INDEX idx_claim_ledger_outbox_pending ON claimsgl.claim_ledger_outbox USING btree (status) WHERE ((status)::text = 'pending'::text)",
+          "table": "claimsgl.claim_ledger_outbox",
+          "columns": [
+            "status"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "claim_ledger_outbox_amount_minor_check",
+          "type": "CHECK",
+          "def": "CHECK ((amount_minor \u003c\u003e 0))",
+          "table": "claimsgl.claim_ledger_outbox",
+          "referenced_table": "",
+          "columns": [
+            "amount_minor"
+          ]
+        },
+        {
+          "name": "claim_ledger_outbox_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "claimsgl.claim_ledger_outbox",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "claim_ledger_outbox_reference_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (reference)",
+          "table": "claimsgl.claim_ledger_outbox",
+          "referenced_table": "",
+          "columns": [
+            "reference"
+          ]
+        }
+      ]
+    },
+    {
       "name": "complaints.audit_log",
       "type": "BASE TABLE",
       "columns": [
