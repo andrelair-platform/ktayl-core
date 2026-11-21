@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,9 +19,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Billing invoice API (SSO-gated — Finance). Raise an invoice (idempotent) + read who-owes-what. */
+/**
+ * Billing invoice API — gated to the <b>Finance</b> group (like {@link PaymentController}): raising an
+ * invoice and reading who-owes-what exposes the premium + its gross/net/<b>commission</b> split
+ * (commercially sensitive), so least-privilege requires the Finance authority, not merely authentication.
+ * Auto-invoicing on ingest runs through the in-process event listener, not this endpoint, so the gate
+ * doesn't affect the bound-risk → invoice chain.
+ */
 @RestController
 @RequestMapping("/api/billing")
+@PreAuthorize("hasAuthority('GROUP_Finance')")
 public class InvoiceController {
 
     public record InstallmentView(int seq, LocalDate dueDate, long amountMinor, String status) {}
