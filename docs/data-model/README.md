@@ -8,8 +8,8 @@
 | [billing.dunning_case](billing.dunning_case.md)                 | 8       |         | BASE TABLE |
 | [billing.ingested_policy](billing.ingested_policy.md)           | 10      |         | BASE TABLE |
 | [billing.installment](billing.installment.md)                   | 7       |         | BASE TABLE |
-| [billing.invoice](billing.invoice.md)                           | 6       |         | BASE TABLE |
-| [billing.ledger_outbox](billing.ledger_outbox.md)               | 11      |         | BASE TABLE |
+| [billing.invoice](billing.invoice.md)                           | 10      |         | BASE TABLE |
+| [billing.ledger_outbox](billing.ledger_outbox.md)               | 12      |         | BASE TABLE |
 | [billing.payment](billing.payment.md)                           | 9       |         | BASE TABLE |
 | [billing.schema_marker](billing.schema_marker.md)               | 2       |         | BASE TABLE |
 | [billing.webhook_event](billing.webhook_event.md)               | 4       |         | BASE TABLE |
@@ -86,9 +86,13 @@ erDiagram
   varchar_16_ status
 }
 "billing.invoice" {
+  integer commission_bps
+  bigint commission_minor
   varchar_3_ currency
+  bigint gross_minor
   uuid id
   timestamp_with_time_zone issued_at
+  bigint net_minor
   varchar_64_ policy_number FK
   varchar_16_ status
   bigint total_minor
@@ -96,6 +100,7 @@ erDiagram
 "billing.ledger_outbox" {
   bigint amount_minor
   integer attempts
+  bigint commission_minor
   timestamp_with_time_zone created_at
   varchar_3_ currency
   varchar_32_ event_type

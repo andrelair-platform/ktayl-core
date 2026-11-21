@@ -2,23 +2,30 @@
 
 ## Columns
 
-| Name          | Type                     | Default                     | Nullable | Children                                      | Parents                                               | Comment |
-| ------------- | ------------------------ | --------------------------- | -------- | --------------------------------------------- | ----------------------------------------------------- | ------- |
-| currency      | varchar(3)               |                             | false    |                                               |                                                       |         |
-| id            | uuid                     |                             | false    | [billing.installment](billing.installment.md) |                                                       |         |
-| issued_at     | timestamp with time zone | now()                       | false    |                                               |                                                       |         |
-| policy_number | varchar(64)              |                             | false    |                                               | [billing.ingested_policy](billing.ingested_policy.md) |         |
-| status        | varchar(16)              | 'issued'::character varying | false    |                                               |                                                       |         |
-| total_minor   | bigint                   |                             | false    |                                               |                                                       |         |
+| Name             | Type                     | Default                     | Nullable | Children                                      | Parents                                               | Comment |
+| ---------------- | ------------------------ | --------------------------- | -------- | --------------------------------------------- | ----------------------------------------------------- | ------- |
+| commission_bps   | integer                  |                             | false    |                                               |                                                       |         |
+| commission_minor | bigint                   |                             | false    |                                               |                                                       |         |
+| currency         | varchar(3)               |                             | false    |                                               |                                                       |         |
+| gross_minor      | bigint                   |                             | false    |                                               |                                                       |         |
+| id               | uuid                     |                             | false    | [billing.installment](billing.installment.md) |                                                       |         |
+| issued_at        | timestamp with time zone | now()                       | false    |                                               |                                                       |         |
+| net_minor        | bigint                   |                             | false    |                                               |                                                       |         |
+| policy_number    | varchar(64)              |                             | false    |                                               | [billing.ingested_policy](billing.ingested_policy.md) |         |
+| status           | varchar(16)              | 'issued'::character varying | false    |                                               |                                                       |         |
+| total_minor      | bigint                   |                             | false    |                                               |                                                       |         |
 
 ## Constraints
 
-| Name                       | Type        | Definition                                                            |
-| -------------------------- | ----------- | --------------------------------------------------------------------- |
-| invoice_pkey               | PRIMARY KEY | PRIMARY KEY (id)                                                      |
-| invoice_policy_number_fkey | FOREIGN KEY | FOREIGN KEY (policy_number) REFERENCES ingested_policy(policy_number) |
-| invoice_policy_number_key  | UNIQUE      | UNIQUE (policy_number)                                                |
-| invoice_total_minor_check  | CHECK       | CHECK ((total_minor > 0))                                             |
+| Name                       | Type        | Definition                                                                       |
+| -------------------------- | ----------- | -------------------------------------------------------------------------------- |
+| invoice_gross_is_total     | CHECK       | CHECK ((gross_minor = total_minor))                                              |
+| invoice_pkey               | PRIMARY KEY | PRIMARY KEY (id)                                                                 |
+| invoice_policy_number_fkey | FOREIGN KEY | FOREIGN KEY (policy_number) REFERENCES ingested_policy(policy_number)            |
+| invoice_policy_number_key  | UNIQUE      | UNIQUE (policy_number)                                                           |
+| invoice_split_nonneg       | CHECK       | CHECK (((commission_minor >= 0) AND (net_minor >= 0) AND (commission_bps >= 0))) |
+| invoice_split_reconciles   | CHECK       | CHECK (((net_minor + commission_minor) = gross_minor))                           |
+| invoice_total_minor_check  | CHECK       | CHECK ((total_minor > 0))                                                        |
 
 ## Indexes
 
@@ -36,9 +43,13 @@ erDiagram
 "billing.invoice" |o--|| "billing.ingested_policy" : "FOREIGN KEY (policy_number) REFERENCES ingested_policy(policy_number)"
 
 "billing.invoice" {
+  integer commission_bps
+  bigint commission_minor
   varchar_3_ currency
+  bigint gross_minor
   uuid id
   timestamp_with_time_zone issued_at
+  bigint net_minor
   varchar_64_ policy_number FK
   varchar_16_ status
   bigint total_minor

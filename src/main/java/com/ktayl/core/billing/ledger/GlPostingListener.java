@@ -35,20 +35,22 @@ public class GlPostingListener {
 
     @EventListener
     public void onPremiumInvoiced(PremiumInvoiced e) {
-        enqueue(JournalEntryFactory.PREMIUM_INVOICED, e.policyNumber(), e.totalMinor(), e.currency());
+        // amount = GROSS (the receivable + premium register key off gross); commission drives the 3rd JE leg.
+        enqueue(JournalEntryFactory.PREMIUM_INVOICED, e.policyNumber(), e.totalMinor(), e.commissionMinor(), e.currency());
     }
 
     @EventListener
     public void onPaymentCaptured(PaymentCaptured e) {
-        enqueue(JournalEntryFactory.PAYMENT_CAPTURED, e.paymentId().toString(), e.amountMinor(), e.currency());
+        enqueue(JournalEntryFactory.PAYMENT_CAPTURED, e.paymentId().toString(), e.amountMinor(), 0L, e.currency());
     }
 
-    private void enqueue(String eventType, String reference, long amountMinor, String currency) {
+    private void enqueue(String eventType, String reference, long amountMinor, long commissionMinor, String currency) {
         // idempotent at the row level (UNIQUE(event_type, reference)) — a replayed event never double-queues
         if (outbox.existsByEventTypeAndReference(eventType, reference)) {
             return;
         }
-        outbox.save(new LedgerOutboxEntity(UUID.randomUUID(), eventType, reference, amountMinor, currency, Instant.now()));
-        log.debug("queued GL posting {} {} ({} {} eurocents)", eventType, reference, amountMinor, currency);
+        outbox.save(new LedgerOutboxEntity(UUID.randomUUID(), eventType, reference, amountMinor, commissionMinor,
+                currency, Instant.now()));
+        log.debug("queued GL posting {} {} ({} {} eurocents, commission {})", eventType, reference, amountMinor, currency, commissionMinor);
     }
 }

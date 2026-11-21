@@ -27,7 +27,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
-@Import(InvoiceService.class)
+@Import({InvoiceService.class, CommissionSchedule.class})
 class InvoiceIntegrationTest {
 
     @Container
@@ -52,6 +52,12 @@ class InvoiceIntegrationTest {
         assertThat(items).hasSize(3);
         assertThat(items.stream().mapToLong(InstallmentEntity::getAmountMinor).sum())
                 .isEqualTo(inv.getTotalMinor()).isEqualTo(100_000L); // reconciles on the real DB
+
+        // the gross/net/commission split persisted + satisfies the real DB CHECK constraints (15% default)
+        assertThat(inv.getGrossMinor()).isEqualTo(100_000L);
+        assertThat(inv.getCommissionMinor()).isEqualTo(15_000L);
+        assertThat(inv.getNetMinor()).isEqualTo(85_000L);
+        assertThat(inv.getNetMinor() + inv.getCommissionMinor()).isEqualTo(inv.getGrossMinor());
 
         // idempotent on the real UNIQUE(policy_number) backstop
         assertThat(service.raiseFor("POL-INT", 3).created()).isFalse();

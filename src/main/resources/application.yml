@@ -88,6 +88,14 @@ billing:
   # and a PolicyLapseRecommended event is raised (a recommendation for human review, not an auto-lapse).
   dunning:
     lapse-threshold: ${BILLING_DUNNING_LAPSE_THRESHOLD:3}
+  # Commission schedule (BILL-012b): the broker/intermediary cut of the GROSS premium, in basis points
+  # (1500 = 15%). Policyholder is still billed gross; the split only drives the GL (net income vs commission
+  # payable). A commission schedule is a billing/distribution concern → applied here, no UW change.
+  commission:
+    default-bps: ${BILLING_COMMISSION_DEFAULT_BPS:1500}
+    # Per-product overrides keyed by product_code (basis points), set via env/overlay, e.g.
+    #   BILLING_COMMISSION_RATES_MARINE=1000 → billing.commission.rates.MARINE=1000. Empty by default.
+    rates: {}
 
 # GL posting to ERPNext (ADR-002, BILL-014 — transactional outbox). BLANK api-key by default → no ledger
 # client bean, so the outbox accumulates and the drainer no-ops until ERPNext creds are set (ESO→Vault
@@ -104,6 +112,7 @@ ledger:
     accounts:
       premium-receivable: ${LEDGER_ACC_PREMIUM_RECEIVABLE:Premium Receivable}
       premium-income: ${LEDGER_ACC_PREMIUM_INCOME:Premium Income}
+      commission-payable: ${LEDGER_ACC_COMMISSION_PAYABLE:Commission Payable}
       cash: ${LEDGER_ACC_CASH:Cash}
     # ERPNext requires a Party on a Receivable account — attach it to this account (the receivable) only.
     party-account: ${LEDGER_ERPNEXT_PARTY_ACCOUNT:}

@@ -31,7 +31,8 @@ class InvoiceServiceTest {
     private final IngestedPolicyRepository ingested = mock(IngestedPolicyRepository.class);
     private final AuditRepository audit = mock(AuditRepository.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
-    private final InvoiceService svc = new InvoiceService(invoices, installments, ingested, audit, events);
+    private final CommissionSchedule commissions = new CommissionSchedule(); // default 1500 bps (15%)
+    private final InvoiceService svc = new InvoiceService(invoices, installments, ingested, audit, events, commissions);
 
     private static IngestedPolicyEntity policy(long premiumMinor) {
         return new IngestedPolicyEntity("POL-1", premiumMinor, "EUR", "PROPERTY",
@@ -46,12 +47,20 @@ class InvoiceServiceTest {
         var result = svc.raiseFor("POL-1", 3);
 
         assertThat(result.created()).isTrue();
-        assertThat(result.invoice().getTotalMinor()).isEqualTo(100_000L);
         verify(invoices).save(any(InvoiceEntity.class));
         verify(events).publishEvent(any(PremiumInvoiced.class));
         verify(audit).save(any());
 
-        // the 3 installments reconcile to the premium, to the cent
+        // the invoice carries the gross/net/commission split (gross = total = premium; 15% commission)
+        InvoiceEntity inv = result.invoice();
+        assertThat(inv.getTotalMinor()).isEqualTo(100_000L);
+        assertThat(inv.getGrossMinor()).isEqualTo(100_000L);
+        assertThat(inv.getCommissionBps()).isEqualTo(1500);
+        assertThat(inv.getCommissionMinor()).isEqualTo(15_000L);
+        assertThat(inv.getNetMinor()).isEqualTo(85_000L);
+        assertThat(inv.getNetMinor() + inv.getCommissionMinor()).isEqualTo(inv.getGrossMinor()); // reconciles
+
+        // the 3 installments reconcile to the GROSS premium (the policyholder still pays gross), to the cent
         ArgumentCaptor<InstallmentEntity> cap = ArgumentCaptor.forClass(InstallmentEntity.class);
         verify(installments, org.mockito.Mockito.times(3)).save(cap.capture());
         long sum = cap.getAllValues().stream().mapToLong(InstallmentEntity::getAmountMinor).sum();

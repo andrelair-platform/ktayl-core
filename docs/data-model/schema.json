@@ -403,8 +403,23 @@
       "type": "BASE TABLE",
       "columns": [
         {
+          "name": "commission_bps",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "commission_minor",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
           "name": "currency",
           "type": "varchar(3)",
+          "nullable": false
+        },
+        {
+          "name": "gross_minor",
+          "type": "bigint",
           "nullable": false
         },
         {
@@ -417,6 +432,11 @@
           "type": "timestamp with time zone",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "net_minor",
+          "type": "bigint",
+          "nullable": false
         },
         {
           "name": "policy_number",
@@ -455,6 +475,17 @@
       ],
       "constraints": [
         {
+          "name": "invoice_gross_is_total",
+          "type": "CHECK",
+          "def": "CHECK ((gross_minor = total_minor))",
+          "table": "billing.invoice",
+          "referenced_table": "",
+          "columns": [
+            "gross_minor",
+            "total_minor"
+          ]
+        },
+        {
           "name": "invoice_pkey",
           "type": "PRIMARY KEY",
           "def": "PRIMARY KEY (id)",
@@ -488,6 +519,30 @@
           ]
         },
         {
+          "name": "invoice_split_nonneg",
+          "type": "CHECK",
+          "def": "CHECK (((commission_minor \u003e= 0) AND (net_minor \u003e= 0) AND (commission_bps \u003e= 0)))",
+          "table": "billing.invoice",
+          "referenced_table": "",
+          "columns": [
+            "commission_minor",
+            "net_minor",
+            "commission_bps"
+          ]
+        },
+        {
+          "name": "invoice_split_reconciles",
+          "type": "CHECK",
+          "def": "CHECK (((net_minor + commission_minor) = gross_minor))",
+          "table": "billing.invoice",
+          "referenced_table": "",
+          "columns": [
+            "net_minor",
+            "commission_minor",
+            "gross_minor"
+          ]
+        },
+        {
           "name": "invoice_total_minor_check",
           "type": "CHECK",
           "def": "CHECK ((total_minor \u003e 0))",
@@ -511,6 +566,12 @@
         {
           "name": "attempts",
           "type": "integer",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "commission_minor",
+          "type": "bigint",
           "nullable": false,
           "default": "0"
         },

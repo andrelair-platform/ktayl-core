@@ -36,14 +36,17 @@ public class InvoiceService {
     private final IngestedPolicyRepository ingested;
     private final AuditRepository audit;
     private final ApplicationEventPublisher events;
+    private final CommissionSchedule commissions;
 
     public InvoiceService(InvoiceRepository invoices, InstallmentRepository installments,
-            IngestedPolicyRepository ingested, AuditRepository audit, ApplicationEventPublisher events) {
+            IngestedPolicyRepository ingested, AuditRepository audit, ApplicationEventPublisher events,
+            CommissionSchedule commissions) {
         this.invoices = invoices;
         this.installments = installments;
         this.ingested = ingested;
         this.audit = audit;
         this.events = events;
+        this.commissions = commissions;
     }
 
     /** Raise the invoice for a policy. {@code count} = number of installments (MVP default 1 = annual). */
@@ -57,18 +60,24 @@ public class InvoiceService {
         IngestedPolicyEntity p = ingested.findById(policyNumber)
                 .orElseThrow(() -> new PolicyNotIngestedException(policyNumber));
 
-        var schedule = InstallmentScheduler.split(p.getPremiumMinor(), count, p.getEffectiveDate(), p.getExpiryDate());
-        var invoice = new InvoiceEntity(UUID.randomUUID(), policyNumber, p.getCurrency(), p.getPremiumMinor(),
-                "issued", Instant.now());
+        // The policyholder is billed/collected on GROSS; the split only drives the GL (net income vs commission payable).
+        CommissionSplit split = commissions.split(p.getPremiumMinor(), p.getProductCode());
+        var schedule = InstallmentScheduler.split(split.grossMinor(), count, p.getEffectiveDate(), p.getExpiryDate());
+        var invoice = new InvoiceEntity(UUID.randomUUID(), policyNumber, p.getCurrency(), split.grossMinor(),
+                split.commissionMinor(), split.netMinor(), split.bps(), "issued", Instant.now());
         invoices.save(invoice);
         for (var s : schedule) {
             installments.save(new InstallmentEntity(UUID.randomUUID(), invoice.getId(), s.seq(), s.dueDate(),
                     s.amountMinor(), "open"));
         }
         audit.save(new AuditEntity("invoice", invoice.getId().toString(), "INVOICE_ISSUED", ACTOR,
-                "total_minor=" + p.getPremiumMinor() + " " + p.getCurrency() + " x" + count, Instant.now()));
-        events.publishEvent(new PremiumInvoiced(policyNumber, invoice.getId(), invoice.getTotalMinor(), invoice.getCurrency()));
-        log.info("invoiced {} → {} {} eurocents in {} installment(s)", policyNumber, p.getPremiumMinor(), p.getCurrency(), count);
+                "gross_minor=" + split.grossMinor() + " net_minor=" + split.netMinor()
+                        + " commission_minor=" + split.commissionMinor() + " (" + split.bps() + "bps) "
+                        + p.getCurrency() + " x" + count, Instant.now()));
+        events.publishEvent(new PremiumInvoiced(policyNumber, invoice.getId(), split.grossMinor(),
+                split.netMinor(), split.commissionMinor(), invoice.getCurrency()));
+        log.info("invoiced {} → gross {} net {} commission {} ({}bps) {} in {} installment(s)", policyNumber,
+                split.grossMinor(), split.netMinor(), split.commissionMinor(), split.bps(), p.getCurrency(), count);
         return new RaiseResult(invoice, true);
     }
 }

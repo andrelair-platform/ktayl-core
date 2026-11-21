@@ -26,6 +26,7 @@ public class InvoiceController {
     public record InstallmentView(int seq, LocalDate dueDate, long amountMinor, String status) {}
 
     public record InvoiceView(String policyNumber, UUID invoiceId, String currency, long totalMinor,
+            long grossMinor, long netMinor, long commissionMinor, int commissionBps,
             long outstandingMinor, String status, List<InstallmentView> installments) {}
 
     private final InvoiceService invoiceService;
@@ -65,6 +66,7 @@ public class InvoiceController {
                 .map(i -> new InstallmentView(i.getSeq(), i.getDueDate(), i.getAmountMinor(), i.getStatus()))
                 .toList();
         return new InvoiceView(inv.getPolicyNumber(), inv.getId(), inv.getCurrency(), inv.getTotalMinor(),
+                inv.getGrossMinor(), inv.getNetMinor(), inv.getCommissionMinor(), inv.getCommissionBps(),
                 outstanding, inv.getStatus(), views);
     }
 }
