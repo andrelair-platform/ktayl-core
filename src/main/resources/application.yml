@@ -119,6 +119,23 @@ ledger:
     party-type: ${LEDGER_ERPNEXT_PARTY_TYPE:Customer}
     party: ${LEDGER_ERPNEXT_PARTY:}
 
+# Claims GL seam (ADR-021, CLM-FIN-01). The claims-GL ingest consumer is ACTIVE only when claims.nats.url is
+# set (PROD = the single authoritative consumer; dev blank → disabled, same no-double-post discipline as
+# billing). It consumes insurance.claims.financial (a reserve movement or a loss payment) from the
+# CLAIMS_EVENTS JetStream stream → a transactional outbox → ERPNext JE (reusing the ledger.erpnext.* creds +
+# the ledger.drain-* cadence above). Claims GL account names map to the French-PCG CoA via config.
+claims:
+  nats:
+    url: ${CLAIMS_NATS_URL:}
+    stream: ${CLAIMS_NATS_STREAM:CLAIMS_EVENTS}
+    subject: ${CLAIMS_NATS_SUBJECT:insurance.claims.financial}
+    durable: ${CLAIMS_NATS_DURABLE:claimsgl-ingest}
+  ledger:
+    accounts:
+      incurred: ${CLAIMS_ACC_INCURRED:Claims Incurred}
+      provision: ${CLAIMS_ACC_PROVISION:Outstanding Claims Provision}
+      cash: ${CLAIMS_ACC_CASH:Cash}
+
 # Complaints (CMPL-012): the acknowledgement-due PLACEHOLDER window (next-action SLA marker — deliberately
 # NOT the ACPR/EIOPA/IDD statutory deadline). ISO-8601 duration; acknowledge() sets due = now + this.
 complaints:
