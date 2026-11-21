@@ -101,12 +101,12 @@ class LedgerOutboxIntegrationTest {
     @Test
     void the_listener_writes_the_outbox_row_in_the_business_transaction_atomically() {
         // committed business tx → the outbox row is there
-        tx.publishInTx(new PremiumInvoiced("POL-OK", UUID.randomUUID(), 120_000, "EUR"), false);
+        tx.publishInTx(new PremiumInvoiced("POL-OK", UUID.randomUUID(), 120_000, 102_000, 18_000, "EUR"), false);
         assertThat(outbox.existsByEventTypeAndReference(JournalEntryFactory.PREMIUM_INVOICED, "POL-OK")).isTrue();
 
         // rolled-back business tx → NO outbox row (same-tx: never a half-post)
         assertThatThrownBy(() ->
-                tx.publishInTx(new PremiumInvoiced("POL-ROLLBACK", UUID.randomUUID(), 120_000, "EUR"), true))
+                tx.publishInTx(new PremiumInvoiced("POL-ROLLBACK", UUID.randomUUID(), 120_000, 102_000, 18_000, "EUR"), true))
                 .isInstanceOf(RuntimeException.class);
         assertThat(outbox.existsByEventTypeAndReference(JournalEntryFactory.PREMIUM_INVOICED, "POL-ROLLBACK")).isFalse();
     }

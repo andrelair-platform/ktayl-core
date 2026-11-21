@@ -21,8 +21,24 @@ public class InvoiceEntity {
     @Column(nullable = false, length = 3)
     private String currency;
 
+    /** The gross premium the policyholder owes — equals {@link #totalMinor} (and Σ installments). */
     @Column(name = "total_minor", nullable = false)
     private long totalMinor;
+
+    @Column(name = "gross_minor", nullable = false)
+    private long grossMinor;
+
+    /** The intermediary's (broker) cut of the gross premium (BILL-012b). */
+    @Column(name = "commission_minor", nullable = false)
+    private long commissionMinor;
+
+    /** gross − commission = what the insurer actually earns. */
+    @Column(name = "net_minor", nullable = false)
+    private long netMinor;
+
+    /** Applied commission rate in basis points (1500 = 15%). */
+    @Column(name = "commission_bps", nullable = false)
+    private int commissionBps;
 
     @Column(nullable = false)
     private String status;
@@ -32,13 +48,24 @@ public class InvoiceEntity {
 
     protected InvoiceEntity() {} // JPA
 
-    public InvoiceEntity(UUID id, String policyNumber, String currency, long totalMinor, String status, Instant issuedAt) {
+    /** Full constructor with the gross/net/commission split (BILL-012b). gross == total_minor. */
+    public InvoiceEntity(UUID id, String policyNumber, String currency, long grossMinor, long commissionMinor,
+            long netMinor, int commissionBps, String status, Instant issuedAt) {
         this.id = id;
         this.policyNumber = policyNumber;
         this.currency = currency;
-        this.totalMinor = totalMinor;
+        this.totalMinor = grossMinor;
+        this.grossMinor = grossMinor;
+        this.commissionMinor = commissionMinor;
+        this.netMinor = netMinor;
+        this.commissionBps = commissionBps;
         this.status = status;
         this.issuedAt = issuedAt;
+    }
+
+    /** Convenience: an invoice with no commission (net == gross) — pre-split behaviour. */
+    public InvoiceEntity(UUID id, String policyNumber, String currency, long totalMinor, String status, Instant issuedAt) {
+        this(id, policyNumber, currency, totalMinor, 0L, totalMinor, 0, status, issuedAt);
     }
 
     /** Settle the invoice once every installment is paid (BILL-013b): issued → settled. */
@@ -50,6 +77,10 @@ public class InvoiceEntity {
     public String getPolicyNumber() { return policyNumber; }
     public String getCurrency() { return currency; }
     public long getTotalMinor() { return totalMinor; }
+    public long getGrossMinor() { return grossMinor; }
+    public long getCommissionMinor() { return commissionMinor; }
+    public long getNetMinor() { return netMinor; }
+    public int getCommissionBps() { return commissionBps; }
     public String getStatus() { return status; }
     public Instant getIssuedAt() { return issuedAt; }
 }

@@ -27,6 +27,10 @@ public class LedgerOutboxEntity {
     @Column(name = "amount_minor", nullable = false)
     private long amountMinor;
 
+    /** Commission portion of a PREMIUM_INVOICED posting (0 otherwise) — lets the drainer build the 3-leg JE. */
+    @Column(name = "commission_minor", nullable = false)
+    private long commissionMinor;
+
     @Column(nullable = false, length = 3)
     private String currency;
 
@@ -50,16 +54,23 @@ public class LedgerOutboxEntity {
 
     protected LedgerOutboxEntity() {} // JPA
 
-    public LedgerOutboxEntity(UUID id, String eventType, String reference, long amountMinor, String currency,
-            Instant createdAt) {
+    public LedgerOutboxEntity(UUID id, String eventType, String reference, long amountMinor, long commissionMinor,
+            String currency, Instant createdAt) {
         this.id = id;
         this.eventType = eventType;
         this.reference = reference;
         this.amountMinor = amountMinor;
+        this.commissionMinor = commissionMinor;
         this.currency = currency;
         this.status = "pending";
         this.attempts = 0;
         this.createdAt = createdAt;
+    }
+
+    /** No-commission posting (e.g. PAYMENT_CAPTURED, or a pre-split premium) — commission defaults to 0. */
+    public LedgerOutboxEntity(UUID id, String eventType, String reference, long amountMinor, String currency,
+            Instant createdAt) {
+        this(id, eventType, reference, amountMinor, 0L, currency, createdAt);
     }
 
     /** Mark posted (the drainer, on a successful ERPNext post). */
@@ -80,6 +91,7 @@ public class LedgerOutboxEntity {
     public String getEventType() { return eventType; }
     public String getReference() { return reference; }
     public long getAmountMinor() { return amountMinor; }
+    public long getCommissionMinor() { return commissionMinor; }
     public String getCurrency() { return currency; }
     public String getStatus() { return status; }
     public int getAttempts() { return attempts; }

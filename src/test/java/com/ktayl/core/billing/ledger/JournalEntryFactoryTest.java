@@ -14,19 +14,34 @@ import org.junit.jupiter.api.Test;
 class JournalEntryFactoryTest {
 
     private final JournalEntryFactory factory =
-            new JournalEntryFactory("Premium Receivable", "Premium Income", "Cash");
+            new JournalEntryFactory("Premium Receivable", "Premium Income", "Commission Payable", "Cash");
 
     private static LedgerOutboxEntity row(String type, long amt) {
         return new LedgerOutboxEntity(UUID.randomUUID(), type, "REF-1", amt, "EUR", Instant.now());
     }
 
+    private static LedgerOutboxEntity row(String type, long amt, long commission) {
+        return new LedgerOutboxEntity(UUID.randomUUID(), type, "REF-1", amt, commission, "EUR", Instant.now());
+    }
+
     @Test
-    void premium_invoiced_maps_to_DR_receivable_CR_income() {
+    void premium_invoiced_with_no_commission_is_the_classic_two_leg() {
         JournalEntry je = factory.from(row(JournalEntryFactory.PREMIUM_INVOICED, 480_000));
         assertThat(je.totalMinor()).isEqualTo(480_000);
         assertThat(je.lines()).containsExactly(
                 new Line("Premium Receivable", 480_000, 0),
                 new Line("Premium Income", 0, 480_000));
+    }
+
+    @Test
+    void premium_invoiced_with_commission_splits_into_three_balanced_legs() {
+        // gross 480_000, commission 72_000 (15%) → DR receivable 480k / CR income 408k / CR commission 72k
+        JournalEntry je = factory.from(row(JournalEntryFactory.PREMIUM_INVOICED, 480_000, 72_000));
+        assertThat(je.totalMinor()).isEqualTo(480_000); // balances (invariant enforced at construction)
+        assertThat(je.lines()).containsExactly(
+                new Line("Premium Receivable", 480_000, 0),
+                new Line("Premium Income", 0, 408_000),
+                new Line("Commission Payable", 0, 72_000));
     }
 
     @Test
