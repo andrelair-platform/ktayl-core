@@ -34,7 +34,7 @@ a real boundary.
 ADR-010 (idempotency for consumers + money/integration ops).
 
 ## See also
-Platform ADR **`minicloud-gitops/docs/cdc-eventing-backbone.md`** — why Debezium stays a *scoped
+Platform ADR **`minicloud-platform-docs/docs/architecture/adr/cdc-eventing-backbone.md`** — why Debezium stays a *scoped
 legacy-strangler CDC bridge* (GlobalCore binlog → NATS) rather than a universal "capture-once"
 backbone, and why owned modules publish domain/integration events instead of being CDC'd. This ADR is
 the module-boundary half; that one is the platform-wide CDC-scope + reporting (dbt ELT) half.
