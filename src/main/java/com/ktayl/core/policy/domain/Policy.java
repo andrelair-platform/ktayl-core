@@ -139,6 +139,7 @@ public final class Policy {
     }
 
     /** Rebuild from stored state (persistence only — the domain never knows it is persisted). */
+    @SuppressWarnings("checkstyle:ParameterNumber") // data-carrier: the args ARE the persisted fields
     public static Policy rehydrate(UUID id, String policyNumber, String holderName, String productCode,
             LocalDate effectiveDate, LocalDate expiryDate, PolicyStatus status, Instant createdAt, Instant updatedAt) {
         return new Policy(id, policyNumber, holderName, productCode, effectiveDate, expiryDate, status, createdAt, updatedAt);

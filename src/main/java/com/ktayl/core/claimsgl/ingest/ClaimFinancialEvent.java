@@ -37,6 +37,11 @@ public record ClaimFinancialEvent(
         if (claimNumber == null || claimNumber.isBlank()) throw new IllegalArgumentException("claim_number is required");
         if (currency == null || currency.length() != 3) throw new IllegalArgumentException("currency must be ISO-4217");
         if (occurredOn == null) throw new IllegalArgumentException("occurred_on is required");
+        validateAmountForType();
+    }
+
+    /** The per-type amount rule (reserve-set must be non-zero; payment-executed must be > 0). */
+    private void validateAmountForType() {
         switch (type == null ? "" : type) {
             case TYPE_RESERVE_SET -> {
                 if (amountMinor == 0) throw new IllegalArgumentException("reserve-set movement must be non-zero");

@@ -116,22 +116,23 @@ public class YenteClient implements ScreeningEngine {
             if (catalog == null || !(catalog.get("datasets") instanceof List<?> datasets) || datasets.isEmpty()) {
                 return null;
             }
-            Map<?, ?> chosen = null;
-            for (Object o : datasets) {
-                if (o instanceof Map<?, ?> ds && "default".equals(String.valueOf(ds.get("name")))) {
-                    chosen = ds;
-                    break;
-                }
-            }
-            if (chosen == null && datasets.get(0) instanceof Map<?, ?> first) {
-                chosen = first;
-            }
+            Map<?, ?> chosen = pickDefaultDataset(datasets);
             Object version = chosen == null ? null : chosen.get("version");
             return version == null ? null : version.toString();
         } catch (RuntimeException e) {
             log.debug("yente /catalog version read failed: {}", e.getMessage());
             return null;
         }
+    }
+
+    /** The dataset named "default", else the first dataset (the yente catalog convention). */
+    private static Map<?, ?> pickDefaultDataset(List<?> datasets) {
+        for (Object o : datasets) {
+            if (o instanceof Map<?, ?> ds && "default".equals(String.valueOf(ds.get("name")))) {
+                return ds;
+            }
+        }
+        return datasets.get(0) instanceof Map<?, ?> first ? first : null;
     }
 
     private static double toDouble(Object o) {

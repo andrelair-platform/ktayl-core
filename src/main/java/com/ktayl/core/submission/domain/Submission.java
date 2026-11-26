@@ -69,6 +69,7 @@ public final class Submission {
     }
 
     /** Rebuild an aggregate from persisted state (used only by the persistence adapter). */
+    @SuppressWarnings("checkstyle:ParameterNumber") // data-carrier: the args ARE the persisted fields
     public static Submission rehydrate(UUID id, String brokerRef, String insuredName, String productLine,
             Instant receivedAt, SubmissionStatus status, boolean screeningHold, UUID screeningAlertId,
             String routedTarget, String uwSubmissionRef, Instant updatedAt) {
