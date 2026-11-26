@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+  "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+  "https://checkstyle.org/dtds/configuration_1_3.dtd">
+<!--
+  clean-code.md deterministic floor (Java row) — see minicloud-gitops#2353.
+  A FOCUSED config: only the measurable floor (complexity/length/params/nesting),
+  naming, error-handling, and unused-imports — NOT the full Sun/Google style
+  (which is hundreds of formatting nits the formatter owns, not this floor).
+-->
+<module name="Checker">
+  <property name="severity" value="error"/>
+  <property name="fileExtensions" value="java"/>
+
+  <!-- Honour inline `@SuppressWarnings("checkstyle:<Rule>")` (documented per-case exemptions). -->
+  <module name="SuppressWarningsFilter"/>
+
+  <module name="TreeWalker">
+    <module name="SuppressWarningsHolder"/>
+
+    <!-- Measurable floor (house defaults: complexity=10, method=80, params=6, nesting=4) -->
+    <module name="CyclomaticComplexity">
+      <property name="max" value="10"/>
+    </module>
+    <module name="MethodLength">
+      <property name="max" value="80"/>
+      <property name="countEmpty" value="false"/>
+    </module>
+    <module name="ParameterNumber">
+      <property name="max" value="6"/>
+      <!-- Methods only. Constructors are exempt: a Spring @Service ctor is dependency-injected
+           (the Java analogue of a NestJS DI constructor) and a JPA-entity / domain-record ctor is
+           a data-carrier signature (the args ARE the row fields). Both are legitimate, not bloat. -->
+      <property name="tokens" value="METHOD_DEF"/>
+    </module>
+    <module name="NestedIfDepth">
+      <property name="max" value="4"/>
+    </module>
+
+    <!-- Error handling -->
+    <module name="EmptyCatchBlock"/>
+    <module name="IllegalCatch">
+      <!-- Only the genuinely-dangerous broad catches: catching Throwable/Error swallows OOM /
+           StackOverflow and is (almost) always a bug. A deliberate `catch (Exception)` at an
+           integration boundary (event consumer, webhook, HTTP adapter, cursor parser) to wrap /
+           retry / map — never silently swallow (EmptyCatchBlock covers that) — is idiomatic here. -->
+      <property name="illegalClassNames" value="java.lang.Throwable, java.lang.Error, Throwable, Error"/>
+    </module>
+
+    <!-- Delete-don't-accumulate -->
+    <module name="UnusedImports"/>
+
+    <!-- Naming -->
+    <module name="TypeName"/>
+    <module name="MethodName"/>
+    <module name="MemberName"/>
+    <module name="ParameterName"/>
+    <module name="LocalVariableName"/>
+    <module name="ConstantName">
+      <!-- Allow the universal SLF4J `log`/`logger` field convention (lowercase), plus UPPER_CASE. -->
+      <property name="format" value="^(log|logger|[A-Z][A-Z0-9]*(_[A-Z0-9]+)*)$"/>
+    </module>
+    <module name="StaticVariableName"/>
+  </module>
+</module>

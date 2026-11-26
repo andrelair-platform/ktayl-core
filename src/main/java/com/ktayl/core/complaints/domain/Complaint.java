@@ -65,6 +65,7 @@ public final class Complaint {
     }
 
     /** Rebuild an aggregate from persisted state (used only by the persistence adapter). */
+    @SuppressWarnings("checkstyle:ParameterNumber") // data-carrier: the args ARE the persisted fields
     public static Complaint rehydrate(UUID id, ComplaintChannel channel, String subjectRef, String summary,
             Instant registeredAt, String idempotencyKey, ComplaintStatus status, Instant acknowledgementDueAt,
             String assignedTo, String resolutionNote) {

@@ -46,27 +46,33 @@ public final class ExposureItem {
      *
      * @throws InvalidSubmissionException if the site name/country/currency is blank or the TIV is null/≤ 0
      */
+    // DDD factory: the args ARE the exposure-item fields (a data-carrier signature, not bloat).
+    @SuppressWarnings("checkstyle:ParameterNumber")
     public static ExposureItem create(UUID submissionId, String siteName, String country, BigDecimal tivAmount,
             String currency, String occupancy, String postcode, String lossHistory, boolean catFlag,
             Instant now) {
-        if (siteName == null || siteName.isBlank()) {
-            throw new InvalidSubmissionException("site name is required");
-        }
-        if (country == null || country.isBlank()) {
-            throw new InvalidSubmissionException("country is required");
-        }
+        // Validation order preserved (site → country → tiv → currency); requireText strips + requires.
+        String site = requireText(siteName, "site name");
+        String ctry = requireText(country, "country");
         if (tivAmount == null || tivAmount.signum() <= 0) {
             throw new InvalidSubmissionException("tiv amount must be positive");
         }
-        if (currency == null || currency.isBlank()) {
-            throw new InvalidSubmissionException("currency is required");
-        }
-        return new ExposureItem(UUID.randomUUID(), submissionId, siteName.strip(), country.strip(), tivAmount,
-                currency.strip(), occupancy == null ? null : occupancy.strip(),
+        String curr = requireText(currency, "currency");
+        return new ExposureItem(UUID.randomUUID(), submissionId, site, ctry, tivAmount,
+                curr, occupancy == null ? null : occupancy.strip(),
                 postcode == null ? null : postcode.strip(), lossHistory, catFlag, now);
     }
 
+    /** Require a non-blank text field, returning it stripped (throws with "&lt;field&gt; is required"). */
+    private static String requireText(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new InvalidSubmissionException(field + " is required");
+        }
+        return value.strip();
+    }
+
     /** Rebuild an exposure item from persisted state (used only by the persistence adapter). */
+    @SuppressWarnings("checkstyle:ParameterNumber") // data-carrier: the args ARE the persisted fields
     public static ExposureItem rehydrate(UUID id, UUID submissionId, String siteName, String country,
             BigDecimal tivAmount, String currency, String occupancy, String postcode, String lossHistory,
             boolean catFlag, Instant createdAt) {
