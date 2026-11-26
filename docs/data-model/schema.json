@@ -1284,6 +1284,151 @@
       ]
     },
     {
+      "name": "finance.loss_triangle_cell",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "accident_period",
+          "type": "varchar(16)",
+          "nullable": false
+        },
+        {
+          "name": "as_of",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "basis",
+          "type": "varchar(16)",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "created_by",
+          "type": "varchar(128)",
+          "nullable": false
+        },
+        {
+          "name": "cumulative_minor",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "currency",
+          "type": "varchar(3)",
+          "nullable": false
+        },
+        {
+          "name": "development_lag",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "portfolio",
+          "type": "varchar(64)",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_triangle_cell_lookup",
+          "def": "CREATE INDEX idx_triangle_cell_lookup ON finance.loss_triangle_cell USING btree (portfolio, as_of, basis)",
+          "table": "finance.loss_triangle_cell",
+          "columns": [
+            "portfolio",
+            "as_of",
+            "basis"
+          ]
+        },
+        {
+          "name": "loss_triangle_cell_pkey",
+          "def": "CREATE UNIQUE INDEX loss_triangle_cell_pkey ON finance.loss_triangle_cell USING btree (id)",
+          "table": "finance.loss_triangle_cell",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "uq_triangle_cell",
+          "def": "CREATE UNIQUE INDEX uq_triangle_cell ON finance.loss_triangle_cell USING btree (portfolio, as_of, basis, accident_period, development_lag)",
+          "table": "finance.loss_triangle_cell",
+          "columns": [
+            "portfolio",
+            "as_of",
+            "basis",
+            "accident_period",
+            "development_lag"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "loss_triangle_cell_basis_check",
+          "type": "CHECK",
+          "def": "CHECK (((basis)::text = ANY ((ARRAY['PAID'::character varying, 'INCURRED'::character varying])::text[])))",
+          "table": "finance.loss_triangle_cell",
+          "referenced_table": "",
+          "columns": [
+            "basis"
+          ]
+        },
+        {
+          "name": "loss_triangle_cell_cumulative_minor_check",
+          "type": "CHECK",
+          "def": "CHECK ((cumulative_minor \u003e= 0))",
+          "table": "finance.loss_triangle_cell",
+          "referenced_table": "",
+          "columns": [
+            "cumulative_minor"
+          ]
+        },
+        {
+          "name": "loss_triangle_cell_development_lag_check",
+          "type": "CHECK",
+          "def": "CHECK ((development_lag \u003e= 0))",
+          "table": "finance.loss_triangle_cell",
+          "referenced_table": "",
+          "columns": [
+            "development_lag"
+          ]
+        },
+        {
+          "name": "loss_triangle_cell_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "finance.loss_triangle_cell",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "uq_triangle_cell",
+          "type": "UNIQUE",
+          "def": "UNIQUE (portfolio, as_of, basis, accident_period, development_lag)",
+          "table": "finance.loss_triangle_cell",
+          "referenced_table": "",
+          "columns": [
+            "portfolio",
+            "as_of",
+            "basis",
+            "accident_period",
+            "development_lag"
+          ]
+        }
+      ]
+    },
+    {
       "name": "finance.period_close_audit",
       "type": "BASE TABLE",
       "columns": [
@@ -1383,6 +1528,285 @@
           "referenced_table": "",
           "columns": [
             "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "finance.reserve_movement_outbox",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "amount_minor",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "attempts",
+          "type": "integer",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "currency",
+          "type": "varchar(3)",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "last_error",
+          "type": "varchar(500)",
+          "nullable": true
+        },
+        {
+          "name": "portfolio",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "posted_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "posted_ref",
+          "type": "varchar(140)",
+          "nullable": true
+        },
+        {
+          "name": "reference",
+          "type": "varchar(80)",
+          "nullable": false
+        },
+        {
+          "name": "review_id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "varchar(16)",
+          "nullable": false,
+          "default": "'pending'::character varying"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_reserve_movement_outbox_pending",
+          "def": "CREATE INDEX idx_reserve_movement_outbox_pending ON finance.reserve_movement_outbox USING btree (status) WHERE ((status)::text = 'pending'::text)",
+          "table": "finance.reserve_movement_outbox",
+          "columns": [
+            "status"
+          ]
+        },
+        {
+          "name": "reserve_movement_outbox_pkey",
+          "def": "CREATE UNIQUE INDEX reserve_movement_outbox_pkey ON finance.reserve_movement_outbox USING btree (id)",
+          "table": "finance.reserve_movement_outbox",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "reserve_movement_outbox_reference_key",
+          "def": "CREATE UNIQUE INDEX reserve_movement_outbox_reference_key ON finance.reserve_movement_outbox USING btree (reference)",
+          "table": "finance.reserve_movement_outbox",
+          "columns": [
+            "reference"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "reserve_movement_outbox_amount_minor_check",
+          "type": "CHECK",
+          "def": "CHECK ((amount_minor \u003c\u003e 0))",
+          "table": "finance.reserve_movement_outbox",
+          "referenced_table": "",
+          "columns": [
+            "amount_minor"
+          ]
+        },
+        {
+          "name": "reserve_movement_outbox_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "finance.reserve_movement_outbox",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "reserve_movement_outbox_reference_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (reference)",
+          "table": "finance.reserve_movement_outbox",
+          "referenced_table": "",
+          "columns": [
+            "reference"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "finance.reserve_review",
+      "type": "BASE TABLE",
+      "columns": [
+        {
+          "name": "as_of",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "basis",
+          "type": "varchar(16)",
+          "nullable": false
+        },
+        {
+          "name": "booked_movement_minor",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "checker",
+          "type": "varchar(128)",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "currency",
+          "type": "varchar(3)",
+          "nullable": false
+        },
+        {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "detail_json",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "estimated_ibnr_minor",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "estimated_ultimate_minor",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false
+        },
+        {
+          "name": "latest_minor",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "maker",
+          "type": "varchar(128)",
+          "nullable": false
+        },
+        {
+          "name": "method",
+          "type": "varchar(32)",
+          "nullable": false
+        },
+        {
+          "name": "portfolio",
+          "type": "varchar(64)",
+          "nullable": false
+        },
+        {
+          "name": "reason",
+          "type": "varchar(500)",
+          "nullable": true
+        },
+        {
+          "name": "state",
+          "type": "varchar(16)",
+          "nullable": false,
+          "default": "'PENDING'::character varying"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_reserve_review_portfolio",
+          "def": "CREATE INDEX idx_reserve_review_portfolio ON finance.reserve_review USING btree (portfolio, created_at)",
+          "table": "finance.reserve_review",
+          "columns": [
+            "portfolio",
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_reserve_review_state",
+          "def": "CREATE INDEX idx_reserve_review_state ON finance.reserve_review USING btree (state) WHERE ((state)::text = 'PENDING'::text)",
+          "table": "finance.reserve_review",
+          "columns": [
+            "state"
+          ]
+        },
+        {
+          "name": "reserve_review_pkey",
+          "def": "CREATE UNIQUE INDEX reserve_review_pkey ON finance.reserve_review USING btree (id)",
+          "table": "finance.reserve_review",
+          "columns": [
+            "id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "reserve_review_method_check",
+          "type": "CHECK",
+          "def": "CHECK (((method)::text = ANY ((ARRAY['CHAIN_LADDER'::character varying, 'BORNHUETTER_FERGUSON'::character varying])::text[])))",
+          "table": "finance.reserve_review",
+          "referenced_table": "",
+          "columns": [
+            "method"
+          ]
+        },
+        {
+          "name": "reserve_review_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "finance.reserve_review",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "reserve_review_state_check",
+          "type": "CHECK",
+          "def": "CHECK (((state)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying])::text[])))",
+          "table": "finance.reserve_review",
+          "referenced_table": "",
+          "columns": [
+            "state"
           ]
         }
       ]
