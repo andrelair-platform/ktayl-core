@@ -2,33 +2,36 @@
 
 ## Tables
 
-| Name                                                            | Columns | Comment | Type       |
-| --------------------------------------------------------------- | ------- | ------- | ---------- |
-| [billing.audit_log](billing.audit_log.md)                       | 7       |         | BASE TABLE |
-| [billing.dunning_case](billing.dunning_case.md)                 | 8       |         | BASE TABLE |
-| [billing.ingested_policy](billing.ingested_policy.md)           | 10      |         | BASE TABLE |
-| [billing.installment](billing.installment.md)                   | 7       |         | BASE TABLE |
-| [billing.invoice](billing.invoice.md)                           | 10      |         | BASE TABLE |
-| [billing.ledger_outbox](billing.ledger_outbox.md)               | 12      |         | BASE TABLE |
-| [billing.payment](billing.payment.md)                           | 9       |         | BASE TABLE |
-| [billing.schema_marker](billing.schema_marker.md)               | 2       |         | BASE TABLE |
-| [billing.webhook_event](billing.webhook_event.md)               | 4       |         | BASE TABLE |
-| [claimsgl.claim_ledger_outbox](claimsgl.claim_ledger_outbox.md) | 12      |         | BASE TABLE |
-| [complaints.audit_log](complaints.audit_log.md)                 | 7       |         | BASE TABLE |
-| [complaints.complaint](complaints.complaint.md)                 | 10      |         | BASE TABLE |
-| [complaints.schema_marker](complaints.schema_marker.md)         | 2       |         | BASE TABLE |
-| [finance.accounting_period](finance.accounting_period.md)       | 3       |         | BASE TABLE |
-| [finance.period_close_audit](finance.period_close_audit.md)     | 11      |         | BASE TABLE |
-| [policy.policy](policy.policy.md)                               | 9       |         | BASE TABLE |
-| [policy.policy_audit_log](policy.policy_audit_log.md)           | 8       |         | BASE TABLE |
-| [screening.alert](screening.alert.md)                           | 5       |         | BASE TABLE |
-| [screening.party](screening.party.md)                           | 9       |         | BASE TABLE |
-| [screening.screening](screening.screening.md)                   | 6       |         | BASE TABLE |
-| [screening.screening_audit](screening.screening_audit.md)       | 7       |         | BASE TABLE |
-| [screening.screening_case](screening.screening_case.md)         | 8       |         | BASE TABLE |
-| [submission.exposure_item](submission.exposure_item.md)         | 11      |         | BASE TABLE |
-| [submission.submission](submission.submission.md)               | 11      |         | BASE TABLE |
-| [submission.submission_triage](submission.submission_triage.md) | 8       |         | BASE TABLE |
+| Name                                                                  | Columns | Comment | Type       |
+| --------------------------------------------------------------------- | ------- | ------- | ---------- |
+| [billing.audit_log](billing.audit_log.md)                             | 7       |         | BASE TABLE |
+| [billing.dunning_case](billing.dunning_case.md)                       | 8       |         | BASE TABLE |
+| [billing.ingested_policy](billing.ingested_policy.md)                 | 10      |         | BASE TABLE |
+| [billing.installment](billing.installment.md)                         | 7       |         | BASE TABLE |
+| [billing.invoice](billing.invoice.md)                                 | 10      |         | BASE TABLE |
+| [billing.ledger_outbox](billing.ledger_outbox.md)                     | 12      |         | BASE TABLE |
+| [billing.payment](billing.payment.md)                                 | 9       |         | BASE TABLE |
+| [billing.schema_marker](billing.schema_marker.md)                     | 2       |         | BASE TABLE |
+| [billing.webhook_event](billing.webhook_event.md)                     | 4       |         | BASE TABLE |
+| [claimsgl.claim_ledger_outbox](claimsgl.claim_ledger_outbox.md)       | 12      |         | BASE TABLE |
+| [complaints.audit_log](complaints.audit_log.md)                       | 7       |         | BASE TABLE |
+| [complaints.complaint](complaints.complaint.md)                       | 10      |         | BASE TABLE |
+| [complaints.schema_marker](complaints.schema_marker.md)               | 2       |         | BASE TABLE |
+| [finance.accounting_period](finance.accounting_period.md)             | 3       |         | BASE TABLE |
+| [finance.loss_triangle_cell](finance.loss_triangle_cell.md)           | 10      |         | BASE TABLE |
+| [finance.period_close_audit](finance.period_close_audit.md)           | 11      |         | BASE TABLE |
+| [finance.reserve_movement_outbox](finance.reserve_movement_outbox.md) | 12      |         | BASE TABLE |
+| [finance.reserve_review](finance.reserve_review.md)                   | 17      |         | BASE TABLE |
+| [policy.policy](policy.policy.md)                                     | 9       |         | BASE TABLE |
+| [policy.policy_audit_log](policy.policy_audit_log.md)                 | 8       |         | BASE TABLE |
+| [screening.alert](screening.alert.md)                                 | 5       |         | BASE TABLE |
+| [screening.party](screening.party.md)                                 | 9       |         | BASE TABLE |
+| [screening.screening](screening.screening.md)                         | 6       |         | BASE TABLE |
+| [screening.screening_audit](screening.screening_audit.md)             | 7       |         | BASE TABLE |
+| [screening.screening_case](screening.screening_case.md)               | 8       |         | BASE TABLE |
+| [submission.exposure_item](submission.exposure_item.md)               | 11      |         | BASE TABLE |
+| [submission.submission](submission.submission.md)                     | 11      |         | BASE TABLE |
+| [submission.submission_triage](submission.submission_triage.md)       | 8       |         | BASE TABLE |
 
 ## Relations
 
@@ -177,6 +180,18 @@ erDiagram
   varchar_7_ period
   varchar_16_ status
 }
+"finance.loss_triangle_cell" {
+  varchar_16_ accident_period
+  date as_of
+  varchar_16_ basis
+  timestamp_with_time_zone created_at
+  varchar_128_ created_by
+  bigint cumulative_minor
+  varchar_3_ currency
+  integer development_lag
+  uuid id
+  varchar_64_ portfolio
+}
 "finance.period_close_audit" {
   varchar_16_ action
   varchar_128_ actor
@@ -189,6 +204,39 @@ erDiagram
   varchar_7_ period
   varchar_500_ reason
   bigint subledger_posted_minor
+}
+"finance.reserve_movement_outbox" {
+  bigint amount_minor
+  integer attempts
+  timestamp_with_time_zone created_at
+  varchar_3_ currency
+  uuid id
+  varchar_500_ last_error
+  varchar_64_ portfolio
+  timestamp_with_time_zone posted_at
+  varchar_140_ posted_ref
+  varchar_80_ reference
+  uuid review_id
+  varchar_16_ status
+}
+"finance.reserve_review" {
+  date as_of
+  varchar_16_ basis
+  bigint booked_movement_minor
+  varchar_128_ checker
+  timestamp_with_time_zone created_at
+  varchar_3_ currency
+  timestamp_with_time_zone decided_at
+  text detail_json
+  bigint estimated_ibnr_minor
+  bigint estimated_ultimate_minor
+  uuid id
+  bigint latest_minor
+  varchar_128_ maker
+  varchar_32_ method
+  varchar_64_ portfolio
+  varchar_500_ reason
+  varchar_16_ state
 }
 "policy.policy" {
   timestamp_with_time_zone created_at
